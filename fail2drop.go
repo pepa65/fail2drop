@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -77,7 +76,7 @@ func process(line string) {
 	r.cnt += 1
 	// fmt.Println(ipaddr, rec[ipaddr])
 	if r.cnt > 5 && !r.inserted {
-		fmt.Println("ban", ipaddr)
+		log.Println("ban", ipaddr)
 		banip(ipaddr)
 		r.inserted = true
 	}
