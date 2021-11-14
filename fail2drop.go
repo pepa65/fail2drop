@@ -12,18 +12,23 @@ import (
 )
 
 func getIp(str string) string {
-	re1 := regexp.MustCompile(`rhost=(([^ ])*)[ ]`)
+	re1 := regexp.MustCompile(`rhost=([^ ]*)[ ]`)
 	result := re1.FindStringSubmatch(str)
 	if len(result) != 0 {
 		return result[1]
 	}
 
-	re2 := regexp.MustCompile(`Unable to negotiate with (([^ ])*) `)
+	re2 := regexp.MustCompile(`Unable to negotiate with ([^ ]*) `)
 	result = re2.FindStringSubmatch(str)
 	if len(result) != 0 {
 		return result[1]
 	}
+	re3 := regexp.MustCompile(`Failed password for ([^ ]*) from ([^ ]*) `)
+	result = re3.FindStringSubmatch(str)
 
+	if len(result) != 0 {
+		return result[2]
+	}
 	return ""
 }
 func banip(ipaddr string) bool {
