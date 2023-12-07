@@ -19,6 +19,7 @@ type iprecord struct {
 	count    int
 	inserted bool
 }
+
 var record = map[string]*iprecord{}
 
 func banip(ipaddr string) {

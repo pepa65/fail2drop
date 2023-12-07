@@ -20,3 +20,4 @@ sudo systemctl start fail2drop.service
 * The logfile to base banning decisions on can be given on the commandline or be pre-configured in the source.
 * The of failures that triggers a ban can be pre-configured in the source.
 * The logfile recording the bans is `/var/log/fail2drop.log` (as defined in `fail2drop.service`).
+* Check current table with: `sudo nft list table mangle` (from package `nftables`).
