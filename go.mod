@@ -1,4 +1,4 @@
-module github.com/apache2046/fail2drop
+module github.com/pepa65/fail2drop
 
 go 1.21.4
 

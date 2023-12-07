@@ -16,23 +16,12 @@ const (
 )
 
 type iprecord struct {
-	cnt      int
+	count    int
 	inserted bool
 }
-var rec = map[string]*iprecord{}
+var record = map[string]*iprecord{}
 
-func getIp(str string) string {
-	r := regexp.MustCompile(`Connection closed by [1-9][^ ]*`)
-	result := r.FindStringSubmatch(str)
-	if len(result) == 0 {
-		return ""
-	}
-
-	parts := strings.Split(result[0], " ")
-	return parts[len(parts)-1]
-}
-
-func banip(ipaddr string) bool {
+func banip(ipaddr string) {
 	var ipt *iptables.IPTables
 	var err error
 	if strings.Contains(ipaddr, ".") {
@@ -48,8 +37,17 @@ func banip(ipaddr string) bool {
 	if err != nil {
 		log.Fatalln(err)
 	}
+}
 
-	return true
+func getip(str string) string {
+	r := regexp.MustCompile(`Connection closed by [1-9][^ ]*`)
+	result := r.FindStringSubmatch(str)
+	if len(result) == 0 {
+		return ""
+	}
+
+	parts := strings.Split(result[0], " ")
+	return parts[len(parts)-1]
 }
 
 func process(line string) {
@@ -57,25 +55,25 @@ func process(line string) {
 		return
 	}
 
-	ipaddr := getIp(line)
+	ipaddr := getip(line)
 	if ipaddr == "" {
 		return
 	}
 
-	r, ok := rec[ipaddr]
+	r, ok := record[ipaddr]
 	if !ok {
 		r = &iprecord{}
-		rec[ipaddr] = r
+		record[ipaddr] = r
 	}
-	r.cnt += 1
-	if r.cnt > bancount && !r.inserted {
+	r.count += 1
+	if r.count > bancount && !r.inserted {
 		log.Println("ban", ipaddr)
 		banip(ipaddr)
 		r.inserted = true
 	}
 }
 
-func initWork() {
+func inittable() {
 	for _, proto := range []iptables.Protocol{iptables.ProtocolIPv4, iptables.ProtocolIPv6} {
 		ipt, err := iptables.New(iptables.IPFamily(proto), iptables.Timeout(5))
 		if err != nil {
@@ -102,7 +100,7 @@ func initWork() {
 }
 
 func main() {
-	initWork()
+	inittable()
 	var logfile string
 	if len(os.Args) == 1 {
 		logfile = readlog

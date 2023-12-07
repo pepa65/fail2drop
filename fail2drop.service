@@ -1,9 +1,9 @@
 [Unit]
 Description=Fail2Drop
-After=network.target auditd.service sshd.service
+After=network.target sshd.service
 
 [Service]
-ExecStart=/usr/bin/fail2drop
+ExecStart=/usr/local/bin/fail2drop
 StandardOutput=append:/var/log/fail2drop.log
 StandardError=append:/var/log/fail2drop.log
 Restart=always
