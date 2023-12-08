@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 	"regexp"
 	"strings"
 
@@ -10,15 +9,23 @@ import (
 	"github.com/nxadm/tail"
 )
 
-const (
-	version  = "0.1.0"
-	readlog  = "/var/log/auth.log"
-	bancount = 5
-)
+const version  = "0.2.0"
+
+type logsearch struct{
+	logfile  string
+	tag      string
+	ipregex  string
+	bancount int
+}
+
+var logsearches = [...]logsearch{
+	{"/var/log/auth.log", "sshd", `Connection closed by [1-9][^ ]*`, 5},
+	{"/var/log/dovecot", "imap-login: Info: Disconnected", ` rip=[^ ]*`, 5},
+}
 
 type iprecord struct {
-	count    int
-	inserted bool
+	count int
+	added bool
 }
 
 var record = map[string]*iprecord{}
@@ -41,37 +48,34 @@ func banip(ipaddr string) {
 	}
 }
 
-func getip(str string) string {
-	r := regexp.MustCompile(`Connection closed by [1-9][^ ]*`)
-	result := r.FindStringSubmatch(str)
-	if len(result) == 0 {
-		return ""
-	}
-
-	parts := strings.Split(result[0], " ")
-	return parts[len(parts)-1]
-}
-
-func process(line string) {
-	if !strings.Contains(line, "sshd") {
+func process(logsearch logsearch, line string) {
+	if !strings.Contains(line, logsearch.tag) {
 		return
 	}
 
-	ipaddr := getip(line)
-	if ipaddr == "" {
+	regex := regexp.MustCompile(logsearch.ipregex)
+	results := regex.FindStringSubmatch(line)
+	if len(results) == 0 {
 		return
 	}
 
-	r, ok := record[ipaddr]
+	regex = regexp.MustCompile(`[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*`)
+	ipaddrs := regex.FindStringSubmatch(results[0])
+	if len(ipaddrs) == 0 {
+		return
+	}
+
+	ipaddr := ipaddrs[0]
+	rec, ok := record[ipaddr]
 	if !ok {
-		r = &iprecord{}
-		record[ipaddr] = r
+		rec = &iprecord{}
+		record[ipaddr] = rec
 	}
-	r.count += 1
-	if r.count > bancount && !r.inserted {
+	rec.count += 1
+	if rec.count > logsearch.bancount && !rec.added {
 		log.Printf("[fail2drop v%s] ban %s\n", version, ipaddr)
 		banip(ipaddr)
-		r.inserted = true
+		rec.added = true
 	}
 }
 
@@ -101,16 +105,16 @@ func inittable() {
 	}
 }
 
+func follow(logsearch logsearch) {
+	t, _ := tail.TailFile(logsearch.logfile, tail.Config{Follow: true, ReOpen: true})
+	for line := range t.Lines {
+		process(logsearch, line.Text)
+	}
+}
+
 func main() {
 	inittable()
-	var logfile string
-	if len(os.Args) == 1 {
-		logfile = readlog
-	} else {
-		logfile = os.Args[1]
-	}
-	t, _ := tail.TailFile(logfile, tail.Config{Follow: true, ReOpen: true})
-	for line := range t.Lines {
-		process(line.Text)
+	for _, logsearch := range logsearches {
+		go follow(logsearch)
 	}
 }

@@ -1,5 +1,5 @@
-# fail2drop v0.1.0
-**Dropping IP addresses that repeatedly fail on sshd with iptables**
+# fail2drop v0.2.0
+**Dropping IP addresses that repeatedly fail with iptables**
 
 * Repo: github.com/pepa65/fail2drop
 * License: GPLv3+
@@ -11,14 +11,34 @@
 ```
 git clone https://github.com/pepa65/fail2drop
 cd fail2drop
-go build fail2drop.go
+go build
 sudo mv fail2drop /usr/local/bin/
 sudo cp fail2drop.service /etc/systemd/system/
 sudo systemctl enable fail2drop.service
 sudo systemctl start fail2drop.service
 ```
 
-* The logfile to base banning decisions on can be given on the commandline or be pre-configured in the source.
-* The of failures that triggers a ban can be pre-configured in the source.
+## Configure
+* Right now, the configuration is compiled in.
+* Multiple `searchlog` conditions can be specified, with:
+  - `logfile`: The path of the log file to be searched
+  - `tag`: The initial search tag to filter lines in the log file
+  - `ipregex`: A regular expression that hopefully contains an offending IP address.
+  - `bancount`: The maximum number of offences allowed.
 * The logfile recording the bans is `/var/log/fail2drop.log` (as defined in `fail2drop.service`).
+
+## Monitor
 * Check current table with: `sudo nft list table mangle` (from package `nftables`).
+* Check the log of banned IPs: `less /var/log/faildrop.log`
+
+## Update
+```
+cd fail2drop  # Go to the directory with the cloned repo
+git pull
+go build
+sudo systemctl stop fail2drop.service
+sudo mv fail2drop /usr/local/bin/
+sudo cp fail2drop.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl start fail2drop.service
+```
