@@ -10,7 +10,7 @@ import (
 	"github.com/nxadm/tail"
 )
 
-const version  = "0.2.2"
+const version  = "0.2.3"
 
 type logsearch struct{
 	logfile  string
@@ -46,7 +46,7 @@ func banip(ipaddr string) {
 		log.Fatalln(err)
 	}
 
-	err = ipt.AppendUnique("fail2drop", "FAIL2DROP", "--src", ipaddr, "-j", "DROP")
+	err = ipt.AppendUnique("mangle", "FAIL2DROP", "--src", ipaddr, "-j", "DROP")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -90,18 +90,18 @@ func inittable() {
 			log.Fatalln(err)
 		}
 
-		exist, err := ipt.ChainExists("fail2drop", "FAIL2DROP")
+		exist, err := ipt.ChainExists("mangle", "FAIL2DROP")
 		if err != nil {
 			log.Fatalln(err)
 		}
 
 		if !exist {
-			err = ipt.NewChain("fail2drop", "FAIL2DROP")
+			err = ipt.NewChain("mangle", "FAIL2DROP")
 			if err != nil {
 				log.Fatalln(err)
 			}
 
-			err = ipt.Insert("fail2drop", "PREROUTING", 1, "-j", "FAIL2DROP")
+			err = ipt.Insert("mangle", "PREROUTING", 1, "-j", "FAIL2DROP")
 			if err != nil {
 				log.Fatalln(err)
 			}
