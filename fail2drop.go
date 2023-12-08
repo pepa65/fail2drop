@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	version = "0.4.1"
+	version = "0.5.0"
 	name    = "fail2drop"
 	prefix  = "/usr/local/bin/"
 )
@@ -49,7 +49,7 @@ var (
 	unitname = "/etc/systemd/system/" + name + ".service"
 )
 
-func banip(ipaddr string) {
+func banip(ipaddr, tag string) {
 	var ipt *iptables.IPTables
 	var err error
 	if strings.Contains(ipaddr, ".") {
@@ -72,7 +72,7 @@ func banip(ipaddr string) {
 		log.Fatalln(err)
 	}
 
-	log.Printf("[%s v%s] ban %s\n", name, version, ipaddr)
+	log.Printf("[%s v%s] ban '%s' %s\n", name, version, tag, ipaddr)
 }
 
 func process(logsearch logsearch, line string) {
@@ -103,7 +103,7 @@ func process(logsearch logsearch, line string) {
 	}
 	record.count += 1
 	if record.count > logsearch.bancount && !record.added {
-		banip(ipaddr)
+		banip(ipaddr, logsearch.tag)
 		record.added = true
 	}
 }
@@ -143,13 +143,8 @@ func inittable() {
 }
 
 func install() {
-	output, err := exec.Command("systemctl", "stop", name).CombinedOutput()
-	if err != nil && strings.Contains(string(output), "Access denied") {
-		log.Fatalln(err, "insufficient permissions, run with root privileges")
-	}
-
-	var bin []byte
-	bin, err = os.ReadFile(os.Args[0])
+	exec.Command("systemctl", "stop", name).Run()
+	bin, err := os.ReadFile(os.Args[0])
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -194,17 +189,11 @@ func install() {
 
 func uninstall() {
 	exec.Command("systemctl", "stop", name).Run()
-	output, err := exec.Command("systemctl", "disable", name).CombinedOutput()
-	if err != nil && strings.Contains(string(output), "Access denied") {
-		log.Fatalln(err, "insufficient permissions, run with root privileges")
-	}
-
+	output, err := exec.Command("systemctl", "disable", name).Run()
 	err = os.Remove(unitname)
 	if err != nil && !errors.Is(err, syscall.ENOENT) {
 		log.Fatalln(err, "failure to remove unit file " + unitname)
 	}
-
-	log.Println("Unit file removed")
 }
 
 func main() {
