@@ -4,12 +4,13 @@ import (
 	"log"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/nxadm/tail"
 )
 
-const version  = "0.2.1"
+const version  = "0.2.2"
 
 type logsearch struct{
 	logfile  string
@@ -20,7 +21,7 @@ type logsearch struct{
 
 var logsearches = [...]logsearch{
 	{"/var/log/auth.log", "sshd", `Connection closed by [1-9][^ ]*`, 5},
-	{"/var/log/dovecot", "imap-login: Info: Disconnected", ` rip=[^ ]*`, 5},
+	{"/var/log/auth.log.1", "sshd", `Connection closed by [1-9][^ ]*`, 5},
 }
 
 type iprecord struct {
@@ -28,7 +29,10 @@ type iprecord struct {
 	added bool
 }
 
-var record = map[string]*iprecord{}
+var (
+	record = map[string]*iprecord{}
+	wg     sync.WaitGroup
+)
 
 func banip(ipaddr string) {
 	var ipt *iptables.IPTables
@@ -42,7 +46,7 @@ func banip(ipaddr string) {
 		log.Fatalln(err)
 	}
 
-	err = ipt.AppendUnique("mangle", "FAIL2DROP", "--src", ipaddr, "-j", "DROP")
+	err = ipt.AppendUnique("fail2drop", "FAIL2DROP", "--src", ipaddr, "-j", "DROP")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -86,18 +90,18 @@ func inittable() {
 			log.Fatalln(err)
 		}
 
-		exist, err := ipt.ChainExists("mangle", "FAIL2DROP")
+		exist, err := ipt.ChainExists("fail2drop", "FAIL2DROP")
 		if err != nil {
 			log.Fatalln(err)
 		}
 
 		if !exist {
-			err = ipt.NewChain("mangle", "FAIL2DROP")
+			err = ipt.NewChain("fail2drop", "FAIL2DROP")
 			if err != nil {
 				log.Fatalln(err)
 			}
 
-			err = ipt.Insert("mangle", "PREROUTING", 1, "-j", "FAIL2DROP")
+			err = ipt.Insert("fail2drop", "PREROUTING", 1, "-j", "FAIL2DROP")
 			if err != nil {
 				log.Fatalln(err)
 			}
@@ -106,6 +110,7 @@ func inittable() {
 }
 
 func follow(logsearch logsearch) {
+	defer wg.Done()
 	t, _ := tail.TailFile(logsearch.logfile, tail.Config{Follow: true, ReOpen: true})
 	for line := range t.Lines {
 		process(logsearch, line.Text)
@@ -115,6 +120,8 @@ func follow(logsearch logsearch) {
 func main() {
 	inittable()
 	for _, logsearch := range logsearches {
+		wg.Add(1)
 		go follow(logsearch)
 	}
+	wg.Wait()
 }

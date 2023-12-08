@@ -1,4 +1,4 @@
-# fail2drop v0.2.1
+# fail2drop v0.2.2
 **Dropping IP addresses that repeatedly fail with iptables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -28,8 +28,9 @@ sudo systemctl start fail2drop.service
 * The logfile recording the bans is `/var/log/fail2drop.log` (as defined in `fail2drop.service`).
 
 ## Monitor
-* Check current table with: `sudo nft list table mangle` (from package `nftables`).
-* Check the log of banned IPs: `less /var/log/faildrop.log`
+* Check current table with: `sudo nft list table fail2drop` (from package `nftables`).
+* Check the log of banned IPs: `less /var/log/fail2drop.log`
+* Unban all banned entries: `sudo nft flush table fail2drop`
 
 ## Update
 ```
