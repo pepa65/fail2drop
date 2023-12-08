@@ -19,24 +19,24 @@ import (
 )
 
 const (
-	version   = "0.6.2"
+	version   = "0.6.3"
 	name      = "fail2drop"
 	prefix    = "/usr/local/bin/"
 	defconfig = "/etc/fail2drop.yml"
 	deflogout = "/var/log/fail2drop.log"
 )
 
-type logsearch struct {
-	logfile  string
-	tag      string
-	ipregex  string
-	bancount int
+type Logsearch struct {
+	Logfile  string
+	Tag      string
+	Ipregex  string
+	Bancount int
 }
 
 type Config struct {
-	logout      string
-	whitelist   []string
-	logsearches map[string]logsearch
+	Logout      string
+	Whitelist   []string
+	Logsearches map[string]Logsearch
 }
 
 type iprecord struct {
