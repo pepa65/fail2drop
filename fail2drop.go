@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -14,26 +15,28 @@ import (
 
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/nxadm/tail"
+	"gopkg.in/yaml.v2"
 )
 
 const (
-	version = "0.5.1"
-	name    = "fail2drop"
-	prefix  = "/usr/local/bin/"
+	version   = "0.6.0"
+	name      = "fail2drop"
+	prefix    = "/usr/local/bin/"
+	defconfig = "/etc/fail2drop.yml"
+	deflogout = "/var/log/fail2drop.log"
 )
 
-var whitelist = [...]string {"192.168.1.128", "192.168.1.10", "147.78.241.159"}
-
-type logsearch struct{
+type logsearch struct {
 	logfile  string
 	tag      string
 	ipregex  string
 	bancount int
 }
 
-var logsearches = [...]logsearch{
-	{"/var/log/auth.log", "sshd", `Connection closed by [1-9][^ ]*`, 5},
-	{"/var/log/auth.log.1", "sshd", `Connection closed by [1-9][^ ]*`, 5},
+type Config struct {
+	logout      string
+	whitelist   []string
+	logsearches map[string]logsearch
 }
 
 type iprecord struct {
@@ -42,14 +45,17 @@ type iprecord struct {
 }
 
 var (
-	records  = map[string]*iprecord{}
-	wg       sync.WaitGroup
 	//go:embed unit.tmpl
 	unitfile string
+	//go:embed config.tmpl
+	config   string
 	unitname = "/etc/systemd/system/" + name + ".service"
+	records  = map[string]*iprecord{}
+	cfg      Config
+	wg       sync.WaitGroup
 )
 
-func banip(ipaddr, tag string) {
+func banip(ipaddr, set string) {
 	var ipt *iptables.IPTables
 	var err error
 	if strings.Contains(ipaddr, ".") {
@@ -61,7 +67,7 @@ func banip(ipaddr, tag string) {
 		log.Fatalln(err)
 	}
 
-	for _, ip := range whitelist {
+	for _, ip := range cfg.whitelist {
 		if ip == ipaddr {
 			return
 		}
@@ -72,10 +78,10 @@ func banip(ipaddr, tag string) {
 		log.Fatalln(err)
 	}
 
-	log.Printf("[%s v%s] ban '%s' %s\n", name, version, tag, ipaddr)
+	log.Printf("[%s v%s] ban '%s' %s\n", name, version, set, ipaddr)
 }
 
-func process(logsearch logsearch, line string) {
+func process(logsearch logsearch, line, set string) {
 	if !strings.Contains(line, logsearch.tag) {
 		return
 	}
@@ -103,20 +109,31 @@ func process(logsearch logsearch, line string) {
 	}
 	record.count += 1
 	if record.count > logsearch.bancount && !record.added {
-		banip(ipaddr, logsearch.tag)
+		banip(ipaddr, set)
 		record.added = true
 	}
 }
 
-func follow(logsearch logsearch) {
+func follow(logsearch logsearch, set string) {
 	defer wg.Done()
 	t, _ := tail.TailFile(logsearch.logfile, tail.Config{Follow: true, ReOpen: true})
 	for line := range t.Lines {
-		process(logsearch, line.Text)
+		process(logsearch, line.Text, set)
 	}
 }
 
-func inittable() {
+func inits(cfgfile string) {
+	cfgdata, err := ioutil.ReadFile(cfgfile)
+	if err != nil {
+		log.Fatalln(err)
+  }
+
+	cfg.logout = deflogout
+	err = yaml.UnmarshalStrict(cfgdata, &cfg)
+	if err != nil {
+		log.Fatalln("Error in config file " + cfgfile + "\n" + err.Error())
+	}
+
 	for _, proto := range []iptables.Protocol{iptables.ProtocolIPv4, iptables.ProtocolIPv6} {
 		ipt, err := iptables.New(iptables.IPFamily(proto), iptables.Timeout(5))
 		if err != nil {
@@ -149,7 +166,7 @@ func install() {
 		log.Fatalln(err)
 	}
 
-	err = os.WriteFile(prefix + name, bin, 0755)
+	err = os.WriteFile(prefix+name, bin, 0755)
 	if err != nil {
 		if errors.Is(err, syscall.EACCES) {
 			log.Fatalln("insufficient permissions, run with root privileges")
@@ -159,16 +176,25 @@ func install() {
 	}
 
 	var f *os.File
+	f, err = os.OpenFile(config, os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		_, err = f.WriteString(fmt.Sprintf(config))
+	}
+	f.Close()
+	if err != nil {
+		log.Fatalln(err, "could not create new configfile "+config)
+	}
+
 	f, err = os.Create(unitname)
 	if err != nil {
-		log.Fatalln(err, "could not create systemd unit file " + unitname)
+		log.Fatalln(err, "could not create systemd unit file "+unitname)
 	}
 
 	exec.Command("systemctl", "stop", name).Run()
-	defer f.Close()
 	_, err = f.WriteString(fmt.Sprintf(unitfile, name, version, name, name, name))
+	f.Close()
 	if err != nil {
-		log.Fatalln(err, "could not instantiate systemd unit file " + unitname)
+		log.Fatalln(err, "could not instantiate systemd unit file "+unitname)
 	}
 
 	err = exec.Command("systemctl", "daemon-reload").Run()
@@ -178,13 +204,14 @@ func install() {
 
 	err = exec.Command("systemctl", "start", name).Run()
 	if err != nil {
-		log.Fatalln(err, "could not start systemd service " + name)
+		log.Fatalln(err, "could not start systemd service "+name)
 	}
 
 	err = exec.Command("systemctl", "enable", name).Run()
 	if err != nil {
-		log.Fatalln(err, "could not enable systemd service " + name)
+		log.Fatalln(err, "could not enable systemd service "+name)
 	}
+	os.Exit(0)
 }
 
 func uninstall() {
@@ -192,33 +219,37 @@ func uninstall() {
 	exec.Command("systemctl", "disable", name).Run()
 	err := os.Remove(unitname)
 	if err != nil && !errors.Is(err, syscall.ENOENT) {
-		log.Fatalln(err, "failure to remove unit file " + unitname)
+		log.Fatalln(err, "failure to remove unit file "+unitname)
 	}
+	os.Exit(0)
 }
 
 func main() {
-	if len(os.Args) > 1 {
-		if len(os.Args) > 2 {
-			log.Fatalln("Too many arguments")
-		}
-		switch os.Args[1] {
-			case "version", "-V", "--version":
-				fmt.Println(name + " v" + version)
-			case "install", "-i", "--install":
-				install()
-			case "uninstall", "-u", "--uninstall":
-				uninstall()
-			default:
-				log.Fatalln("Only 'install', 'uninstall' or 'version' allowed as argument")
-		}
-
-		os.Exit(0)
+	usage := "Usage: " + name + " [ CFGFILE | -i|install | -u|uninstall | -V|version ]"
+	cfgfile := defconfig
+	if len(os.Args) > 2 {
+		fmt.Println(usage)
+		log.Fatalln("Too many arguments")
 	}
 
-	inittable()
-	for _, logsearch := range logsearches {
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "version", "-V", "--version":
+			fmt.Println(name + " v" + version)
+			os.Exit(0)
+
+		case "install", "-i", "--install":
+			install()
+		case "uninstall", "-u", "--uninstall":
+			uninstall()
+		default:
+			cfgfile = os.Args[1]
+		}
+	}
+	inits(cfgfile)
+	for set, logsearch := range cfg.logsearches {
 		wg.Add(1)
-		go follow(logsearch)
+		go follow(logsearch, set)
 	}
 	wg.Wait()
 }

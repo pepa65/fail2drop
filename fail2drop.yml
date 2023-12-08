@@ -1,0 +1,16 @@
+whitelist:
+- 192.168.1.10
+- 192.168.1.128
+- 147.78.241.159
+
+sshd-auth:
+  logfile: '/var/log/auth.log'
+  tag: 'sshd'
+  ipregex: 'Connection closed by [1-9][^ ]*'
+  bancount: 5
+
+sshd-auth1:
+  logfile: '/var/log/auth.log.1'
+  tag: 'sshd'
+  ipregex: 'Connection closed by [1-9][^ ]*'
+  bancount: 5
