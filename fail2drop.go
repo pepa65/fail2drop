@@ -19,11 +19,11 @@ import (
 )
 
 const (
-	version   = "0.6.4"
+	version   = "0.6.5"
 	name      = "fail2drop"
 	prefix    = "/usr/local/bin/"
 	defconfig = "/etc/fail2drop.yml"
-	deflogout = "/var/log/fail2drop.log"
+	defvarlog = "/var/log/fail2drop.log"
 )
 
 type Logsearch struct {
@@ -81,12 +81,12 @@ func banip(ipaddr, set string) {
 	log.Printf("[%s v%s] ban '%s' %s\n", name, version, set, ipaddr)
 }
 
-func process(logsearch logsearch, line, set string) {
-	if !strings.Contains(line, logsearch.tag) {
+func process(logsearch Logsearch, line, set string) {
+	if !strings.Contains(line, logsearch.Tag) {
 		return
 	}
 
-	regex := regexp.MustCompile(logsearch.ipregex)
+	regex := regexp.MustCompile(logsearch.Ipregex)
 	results := regex.FindStringSubmatch(line)
 	if len(results) == 0 {
 		return
@@ -108,15 +108,15 @@ func process(logsearch logsearch, line, set string) {
 		records[ipaddr] = record
 	}
 	record.count += 1
-	if record.count > logsearch.bancount && !record.added {
+	if record.count > logsearch.Bancount && !record.added {
 		banip(ipaddr, set)
 		record.added = true
 	}
 }
 
-func follow(logsearch logsearch, set string) {
+func follow(logsearch Logsearch, set string) {
 	defer wg.Done()
-	t, _ := tail.TailFile(logsearch.logfile, tail.Config{Follow: true, ReOpen: true})
+	t, _ := tail.TailFile(logsearch.Logfile, tail.Config{Follow: true, ReOpen: true})
 	for line := range t.Lines {
 		process(logsearch, line.Text, set)
 	}
