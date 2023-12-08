@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	version = "0.4.0"
+	version = "0.4.1"
 	name    = "fail2drop"
 	prefix  = "/usr/local/bin/"
 )
@@ -143,7 +143,13 @@ func inittable() {
 }
 
 func install() {
-	bin, err := os.ReadFile(os.Args[0])
+	output, err := exec.Command("systemctl", "stop", name).CombinedOutput()
+	if err != nil && strings.Contains(string(output), "Access denied") {
+		log.Fatalln(err, "insufficient permissions, run with root privileges")
+	}
+
+	var bin []byte
+	bin, err = os.ReadFile(os.Args[0])
 	if err != nil {
 		log.Fatalln(err)
 	}
