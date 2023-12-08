@@ -1,4 +1,4 @@
-# fail2drop v0.2.3
+# fail2drop v0.3.0
 **Dropping IP addresses that repeatedly fail with iptables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -25,6 +25,7 @@ sudo systemctl start fail2drop.service
   - `tag`: The initial search tag to filter lines in the log file
   - `ipregex`: A regular expression that hopefully contains an offending IP address.
   - `bancount`: The maximum number of offences allowed.
+* IP addresses can be whitelisted.
 * The logfile recording the bans is `/var/log/fail2drop.log` (as defined in `fail2drop.service`).
 
 ## Monitor

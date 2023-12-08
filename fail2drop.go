@@ -10,7 +10,7 @@ import (
 	"github.com/nxadm/tail"
 )
 
-const version  = "0.2.3"
+const version  = "0.3.0"
 
 type logsearch struct{
 	logfile  string
@@ -18,6 +18,8 @@ type logsearch struct{
 	ipregex  string
 	bancount int
 }
+
+var whitelist = [...]string {"192.168.1.128", "192.168.1.10", "147.78.241.159"}
 
 var logsearches = [...]logsearch{
 	{"/var/log/auth.log", "sshd", `Connection closed by [1-9][^ ]*`, 5},
@@ -30,8 +32,8 @@ type iprecord struct {
 }
 
 var (
-	record = map[string]*iprecord{}
-	wg     sync.WaitGroup
+	records = map[string]*iprecord{}
+	wg      sync.WaitGroup
 )
 
 func banip(ipaddr string) {
@@ -46,10 +48,18 @@ func banip(ipaddr string) {
 		log.Fatalln(err)
 	}
 
+	for _, ip := range whitelist {
+		if ip == ipaddr {
+			return
+		}
+	}
+
 	err = ipt.AppendUnique("mangle", "FAIL2DROP", "--src", ipaddr, "-j", "DROP")
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	log.Printf("[fail2drop v%s] ban %s\n", version, ipaddr)
 }
 
 func process(logsearch logsearch, line string) {
@@ -66,20 +76,22 @@ func process(logsearch logsearch, line string) {
 	regex = regexp.MustCompile(`[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*`)
 	ipaddrs := regex.FindStringSubmatch(results[0])
 	if len(ipaddrs) == 0 {
-		return
+		regex = regexp.MustCompile(`[0-9a-fA-F]{1,4}(:[0-9a-fA-F]{1,4}){7}`)
+		if len(ipaddrs) == 0 {
+			return
+		}
 	}
 
 	ipaddr := ipaddrs[0]
-	rec, ok := record[ipaddr]
+	record, ok := records[ipaddr]
 	if !ok {
-		rec = &iprecord{}
-		record[ipaddr] = rec
+		record = &iprecord{}
+		records[ipaddr] = record
 	}
-	rec.count += 1
-	if rec.count > logsearch.bancount && !rec.added {
-		log.Printf("[fail2drop v%s] ban %s\n", version, ipaddr)
+	record.count += 1
+	if record.count > logsearch.bancount && !record.added {
 		banip(ipaddr)
-		rec.added = true
+		record.added = true
 	}
 }
 
