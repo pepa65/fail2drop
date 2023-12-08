@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	version   = "0.6.1"
+	version   = "0.6.2"
 	name      = "fail2drop"
 	prefix    = "/usr/local/bin/"
 	defconfig = "/etc/fail2drop.yml"
@@ -177,13 +177,10 @@ func install() {
 
 	var f *os.File
 	f, err = os.OpenFile(defconfig, os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		_, err = f.WriteString(fmt.Sprintf(config))
+	if err == nil {
+		f.WriteString(fmt.Sprintf(config))
 	}
 	f.Close()
-	if err != nil {
-		log.Fatalln(err, "could not create new configfile "+defconfig)
-	}
 
 	f, err = os.Create(unitname)
 	if err != nil {
