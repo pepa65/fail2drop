@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	version   = "0.6.3"
+	version   = "0.6.4"
 	name      = "fail2drop"
 	prefix    = "/usr/local/bin/"
 	defconfig = "/etc/fail2drop.yml"
@@ -34,7 +34,7 @@ type Logsearch struct {
 }
 
 type Config struct {
-	Logout      string
+	Varlog      string
 	Whitelist   []string
 	Logsearches map[string]Logsearch
 }
@@ -67,7 +67,7 @@ func banip(ipaddr, set string) {
 		log.Fatalln(err)
 	}
 
-	for _, ip := range cfg.whitelist {
+	for _, ip := range cfg.Whitelist {
 		if ip == ipaddr {
 			return
 		}
@@ -128,7 +128,7 @@ func inits(cfgfile string) {
 		log.Fatalln(err)
   }
 
-	cfg.logout = deflogout
+	cfg.Varlog = defvarlog
 	err = yaml.UnmarshalStrict(cfgdata, &cfg)
 	if err != nil {
 		log.Fatalln("Error in config file " + cfgfile + "\n" + err.Error())
@@ -244,7 +244,7 @@ func main() {
 		}
 	}
 	inits(cfgfile)
-	for set, logsearch := range cfg.logsearches {
+	for set, logsearch := range cfg.Logsearches {
 		wg.Add(1)
 		go follow(logsearch, set)
 	}

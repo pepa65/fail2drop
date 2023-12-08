@@ -1,4 +1,4 @@
-logout: /var/log/fail2drop.log
+varlog: /var/log/fail2drop.log
 
 whitelist:
 - 192.168.1.10
