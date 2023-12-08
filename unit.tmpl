@@ -1,0 +1,13 @@
+[Unit]
+Description=%s v%s
+After=network.target sshd.service
+
+[Service]
+ExecStart=/usr/local/bin/%s
+StandardOutput=append:/var/log/%s.log
+StandardError=append:/var/log/%s.log
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
