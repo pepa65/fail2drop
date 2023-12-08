@@ -1,11 +1,12 @@
-# Fail2Drop
+# fail2drop v0.1.0
 **Dropping IP addresses that repeatedly fail on sshd with iptables**
 
 * Repo: github.com/pepa65/fail2drop
+* License: GPLv3+
 * After: github.com/apache2046/fail2drop
 
 ## Install
-* Required: `git go sudo systemd`
+* Required: `git` `go` `sudo` `systemd`
 
 ```
 git clone https://github.com/pepa65/fail2drop

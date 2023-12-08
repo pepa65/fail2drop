@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	version  = "0.1.0"
 	readlog  = "/var/log/auth.log"
 	bancount = 5
 )
@@ -68,7 +69,7 @@ func process(line string) {
 	}
 	r.count += 1
 	if r.count > bancount && !r.inserted {
-		log.Println("ban", ipaddr)
+		log.Printf("[fail2drop v%s] ban %s\n", version, ipaddr)
 		banip(ipaddr)
 		r.inserted = true
 	}

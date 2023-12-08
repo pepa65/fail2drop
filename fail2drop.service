@@ -1,5 +1,5 @@
 [Unit]
-Description=Fail2Drop
+Description=fail2drop
 After=network.target sshd.service
 
 [Service]
