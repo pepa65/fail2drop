@@ -1,4 +1,4 @@
-# fail2drop v0.5.0
+# fail2drop v0.5.1
 **Dropping IP addresses that repeatedly fail with iptables**
 
 * Repo: github.com/pepa65/fail2drop
