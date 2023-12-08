@@ -189,8 +189,8 @@ func install() {
 
 func uninstall() {
 	exec.Command("systemctl", "stop", name).Run()
-	output, err := exec.Command("systemctl", "disable", name).Run()
-	err = os.Remove(unitname)
+	exec.Command("systemctl", "disable", name).Run()
+	err := os.Remove(unitname)
 	if err != nil && !errors.Is(err, syscall.ENOENT) {
 		log.Fatalln(err, "failure to remove unit file " + unitname)
 	}
