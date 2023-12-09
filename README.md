@@ -1,5 +1,5 @@
-# fail2drop v0.6.6
-**Dropping IP addresses that repeatedly fail with iptables**
+# fail2drop v0.6.7
+**Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
 * License: GPLv3+
