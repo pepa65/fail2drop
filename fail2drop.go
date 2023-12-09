@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -15,28 +14,21 @@ import (
 
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/nxadm/tail"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 const (
-	version   = "0.6.5"
+	version   = "0.6.6"
 	name      = "fail2drop"
 	prefix    = "/usr/local/bin/"
-	defconfig = "/etc/fail2drop.yml"
-	defvarlog = "/var/log/fail2drop.log"
 )
 
-type Logsearch struct {
-	Logfile  string
-	Tag      string
-	Ipregex  string
-	Bancount int
-}
-
-type Config struct {
-	Varlog      string
-	Whitelist   []string
-	Logsearches map[string]Logsearch
+type logsearch struct {
+	set      string
+	logfile  string
+	tag      string
+	ipregex  string
+	bancount int
 }
 
 type iprecord struct {
@@ -45,13 +37,15 @@ type iprecord struct {
 }
 
 var (
+	whitelist []string
 	//go:embed unit.tmpl
-	unitfile string
+	unittmpl string
 	//go:embed config.tmpl
-	config   string
+	cfgtmpl  string
+	config   = "/etc/fail2drop.yml"
+	varlog   = "/var/log/fail2drop.log"
 	unitname = "/etc/systemd/system/" + name + ".service"
 	records  = map[string]*iprecord{}
-	cfg      Config
 	wg       sync.WaitGroup
 )
 
@@ -67,7 +61,7 @@ func banip(ipaddr, set string) {
 		log.Fatalln(err)
 	}
 
-	for _, ip := range cfg.Whitelist {
+	for _, ip := range whitelist {
 		if ip == ipaddr {
 			return
 		}
@@ -81,12 +75,12 @@ func banip(ipaddr, set string) {
 	log.Printf("[%s v%s] ban '%s' %s\n", name, version, set, ipaddr)
 }
 
-func process(logsearch Logsearch, line, set string) {
-	if !strings.Contains(line, logsearch.Tag) {
+func process(logsearch logsearch, line string) {
+	if !strings.Contains(line, logsearch.tag) {
 		return
 	}
 
-	regex := regexp.MustCompile(logsearch.Ipregex)
+	regex := regexp.MustCompile(logsearch.ipregex)
 	results := regex.FindStringSubmatch(line)
 	if len(results) == 0 {
 		return
@@ -108,32 +102,21 @@ func process(logsearch Logsearch, line, set string) {
 		records[ipaddr] = record
 	}
 	record.count += 1
-	if record.count > logsearch.Bancount && !record.added {
-		banip(ipaddr, set)
+	if record.count > logsearch.bancount && !record.added {
+		banip(ipaddr, logsearch.set)
 		record.added = true
 	}
 }
 
-func follow(logsearch Logsearch, set string) {
+func follow(logsearch logsearch) {
 	defer wg.Done()
-	t, _ := tail.TailFile(logsearch.Logfile, tail.Config{Follow: true, ReOpen: true})
+	t, _ := tail.TailFile(logsearch.logfile, tail.Config{Follow: true, ReOpen: true})
 	for line := range t.Lines {
-		process(logsearch, line.Text, set)
+		process(logsearch, line.Text)
 	}
 }
 
-func inits(cfgfile string) {
-	cfgdata, err := ioutil.ReadFile(cfgfile)
-	if err != nil {
-		log.Fatalln(err)
-  }
-
-	cfg.Varlog = defvarlog
-	err = yaml.UnmarshalStrict(cfgdata, &cfg)
-	if err != nil {
-		log.Fatalln("Error in config file " + cfgfile + "\n" + err.Error())
-	}
-
+func initnf() {
 	for _, proto := range []iptables.Protocol{iptables.ProtocolIPv4, iptables.ProtocolIPv6} {
 		ipt, err := iptables.New(iptables.IPFamily(proto), iptables.Timeout(5))
 		if err != nil {
@@ -176,7 +159,7 @@ func install() {
 	}
 
 	var f *os.File
-	f, err = os.OpenFile(defconfig, os.O_CREATE|os.O_EXCL, 0600)
+	f, err = os.OpenFile(config, os.O_CREATE|os.O_EXCL, 0600)
 	if err == nil {
 		f.WriteString(fmt.Sprintf(config))
 	}
@@ -188,7 +171,7 @@ func install() {
 	}
 
 	exec.Command("systemctl", "stop", name).Run()
-	_, err = f.WriteString(fmt.Sprintf(unitfile, name, version, name, name, name))
+	_, err = f.WriteString(fmt.Sprintf(unittmpl, name, version, name, name, name))
 	f.Close()
 	if err != nil {
 		log.Fatalln(err, "could not instantiate systemd unit file "+unitname)
@@ -223,7 +206,6 @@ func uninstall() {
 
 func main() {
 	usage := "Usage: " + name + " [ CFGFILE | -i|install | -u|uninstall | -V|version ]"
-	cfgfile := defconfig
 	if len(os.Args) > 2 {
 		fmt.Println(usage)
 		log.Fatalln("Too many arguments")
@@ -240,13 +222,52 @@ func main() {
 		case "uninstall", "-u", "--uninstall":
 			uninstall()
 		default:
-			cfgfile = os.Args[1]
+			config = os.Args[1]
 		}
 	}
-	inits(cfgfile)
-	for set, logsearch := range cfg.Logsearches {
-		wg.Add(1)
-		go follow(logsearch, set)
+	initnf()
+	cfgdata, err := os.ReadFile(config)
+	if err != nil {
+		log.Fatalln(err)
+  }
+
+	var cfg interface{}
+	yaml.Unmarshal([]byte(cfgdata), &cfg)
+	cfgslice := cfg.(map[string]interface{})
+  for key, value := range cfgslice {
+		switch key {
+		case "varlog":
+			varlog = value.(string)
+		case "whitelist":
+			for _, ip := range value.([]interface{}) {
+				whitelist = append(whitelist, ip.(string))
+			}
+		default:
+			var logsearch logsearch
+			logsearch.set = key
+			count := 0
+			values := value.(map[string]interface{})
+			for k, v := range values {
+				switch k {
+				case "logfile":
+					logsearch.logfile = v.(string)
+					count += 1
+				case "tag":
+					logsearch.tag = v.(string)
+					count += 1
+				case "ipregex":
+					logsearch.ipregex = v.(string)
+					count += 1
+				case "bancount":
+					logsearch.bancount = v.(int)
+					count += 1
+				}
+			}
+			if count == 4 { // All 4 properties are needed
+				wg.Add(1)
+				go follow(logsearch)
+			}
+		}
 	}
 	wg.Wait()
 }

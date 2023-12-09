@@ -1,4 +1,4 @@
-# fail2drop v0.6.5
+# fail2drop v0.6.6
 **Dropping IP addresses that repeatedly fail with iptables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -61,7 +61,7 @@ sudo ./fail2drop install
 ## Configure
 * See the included example configfile `fail2drop.yml`.
 * The logfile recording the bans is `/var/log/fail2drop.log` by default,
-  but can be specified in the configfile with `logout:`.
+  but can be specified in the configfile with `varlog:`.
 * IP addresses can be whitelisted under `whitelist:` (prepended by `- `).
 * Multiple `searchlog` conditions can be named and specified, with:
   - `logfile:` - The path of the log file to be searched
