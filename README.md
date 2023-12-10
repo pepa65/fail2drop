@@ -1,4 +1,4 @@
-# fail2drop v0.6.7
+# fail2drop v0.7.0
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -11,7 +11,16 @@
 * Logs to single file which can be specified in configfile.
 * IPs can be whitelisted in configfile.
 * Multiple logfiles can be monitored with multiple patterns and bancounts from configfile.
-* Usage: `fail2drop` [ CFGFILE | `-i`|`install` | `-u`|`uninstall` | `-V`|`version` ]
+* Usage: `fail2drop` [ CFGFILE | `-c`|`check` | `-i`|`install` | `-u`|`uninstall` | `-h`|`help` | `-V`|`version` ]
+  - Can use an alternate configfile from the commandline,
+    otherwise it will first check `$PWD/fail2drop.yml` and finally `/etc/fail2drop.yml`.
+  - Can check and list the to-be-banned IP addresses without affecting the system.
+  - Can install the binary, a template for the configfile, the systemd unit file and enable & start the service.
+  - Can stop & disable the service and remove the unit file.
+  - Can show a help text.
+  - Can show the version.
+* Checking and showing the help text and version does not require privileges, the rest does.
+
 * Default configfile: `/etc/fail2drop.yml`
 
 ## Install
@@ -58,6 +67,23 @@ sudo ./fail2drop install
 * The binary can be removed with: `sudo rm /usr/local/bin/fail2drop`
 * The configfile can be removed with: `sudo rm /etc/fail2drop.yml`
 
+## Usage
+```
+fail2drop v0.7.0 - Drop repeatedly offending IP addresses with nftables
+Repo:   github.com/pepa65/fail2drop
+Usage:  fail2drop [ OPTION | CONFIGFILE ]
+    OPTION:
+      -c|check:        List to-be-banned IPs without affecting the system.
+      -i|install:      Install the binary, a template for the configfile, the
+                       systemd unit file and enable & start the service.
+      -u|uninstall:    Stop & disable the service and remove the unit file.
+      -h|help:         Show this help text.
+      -V|version:      Show the version.
+    CONFIGFILE:        Used if given, otherwise 'fail2drop.yml' in the current
+                       directory and finally '/etc/fail2drop.yml' will get used.
+  Privileges are required to run except for 'check', 'help' and 'version'.
+```
+
 ## Configure
 * See the included example configfile `fail2drop.yml`.
 * The logfile recording the bans is `/var/log/fail2drop.log` by default,
@@ -71,7 +97,7 @@ sudo ./fail2drop install
 * If `/etc/fail2drop.yml` does not exist, `fail2drop install` will put a template there.
 
 ## Monitor
-* Check current table with: `sudo nft list table mangle` (from package `nftables`).
+* Check current table with: `sudo nft list ruleset` (from package `nftables`).
 * Check the log of banned IPs: `less /var/log/fail2drop.log`
 * Unban all banned entries: `sudo nft flush table mangle`
 

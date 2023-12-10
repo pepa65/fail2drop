@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	version   = "0.6.7"
+	version   = "0.7.0"
 	name      = "fail2drop"
 	prefix    = "/usr/local/bin/"
 )
@@ -46,8 +46,32 @@ var (
 	varlog   = "/var/log/fail2drop.log"
 	unitname = "/etc/systemd/system/" + name + ".service"
 	records  = map[string]*iprecord{}
+	check    = false
 	wg       sync.WaitGroup
 )
+
+func usage(msg string) {
+	help := name + " v" + version + " - Drop repeatedly offending IP addresses with nftables\n" +
+		"Repo:   github.com/pepa65/fail2drop\n" +
+		"Usage:  " + name + " [ OPTION | CONFIGFILE ]\n" +
+		"    OPTION:\n" +
+		"      -c|check:        List to-be-banned IPs without affecting the system.\n" +
+		"      -i|install:      Install the binary, a template for the configfile, the\n" +
+		"                       systemd unit file and enable & start the service.\n" +
+		"      -u|uninstall:    Stop & disable the service and remove the unit file.\n" +
+		"      -h|help:         Show this help text.\n" +
+    "      -V|version:      Show the version.\n" +
+		"    CONFIGFILE:        Used if given, otherwise '" + name + ".yml' in the current\n" +
+		"                       directory and finally '/etc/" + name + ".yml' will get used.\n" +
+		"  Privileges are required to run, except for 'check', 'help' and 'version'."
+	fmt.Println(help)
+	if msg != "" {
+		fmt.Println("\n", msg)
+		os.Exit(1)
+	}
+
+	os.Exit(0)
+}
 
 func banip(ipaddr, set string) {
 	var ipt *iptables.IPTables
@@ -66,13 +90,14 @@ func banip(ipaddr, set string) {
 			return
 		}
 	}
-
-	err = ipt.AppendUnique("mangle", "FAIL2DROP", "--src", ipaddr, "-j", "DROP")
-	if err != nil {
-		log.Fatalln(err)
+	if !check {
+		err = ipt.AppendUnique("mangle", "FAIL2DROP", "--src", ipaddr, "-j", "DROP")
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}
 
-	log.Printf("[%s v%s] ban '%s' %s\n", name, version, set, ipaddr)
+	log.Printf("[%s v%s] '%s' ban %s\n", name, version, set, ipaddr)
 }
 
 func process(logsearch logsearch, line string) {
@@ -109,14 +134,25 @@ func process(logsearch logsearch, line string) {
 }
 
 func follow(logsearch logsearch) {
-	defer wg.Done()
-	t, _ := tail.TailFile(logsearch.logfile, tail.Config{Follow: true, ReOpen: true})
-	for line := range t.Lines {
-		process(logsearch, line.Text)
+	if check {
+		t, _ := tail.TailFile(logsearch.logfile, tail.Config{MustExist:true, CompleteLines:true})
+		for line := range t.Lines {
+			process(logsearch, line.Text)
+		}
+	} else {
+		defer wg.Done()
+		t, _ := tail.TailFile(logsearch.logfile, tail.Config{MustExist:true, CompleteLines:true, Follow:true, ReOpen:true})
+		for line := range t.Lines {
+			process(logsearch, line.Text)
+		}
 	}
 }
 
 func initnf() {
+	if check {
+		return
+	}
+
 	for _, proto := range []iptables.Protocol{iptables.ProtocolIPv4, iptables.ProtocolIPv6} {
 		ipt, err := iptables.New(iptables.IPFamily(proto), iptables.Timeout(5))
 		if err != nil {
@@ -205,32 +241,45 @@ func uninstall() {
 }
 
 func main() {
-	usage := "Usage: " + name + " [ CFGFILE | -i|install | -u|uninstall | -V|version ]"
 	if len(os.Args) > 2 {
-		fmt.Println(usage)
-		log.Fatalln("Too many arguments")
+		usage("Too many arguments")
 	}
 
+	cfggiven := false
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "version", "-V", "--version":
 			fmt.Println(name + " v" + version)
 			os.Exit(0)
 
+		case "help", "-h", "--help":
+			usage("")
 		case "install", "-i", "--install":
 			install()
 		case "uninstall", "-u", "--uninstall":
 			uninstall()
+		case "check", "-c", "--check":
+			check = true
 		default:
 			config = os.Args[1]
+			cfggiven = true
 		}
 	}
-	initnf()
-	cfgdata, err := os.ReadFile(config)
+
+	// Use configfile present in PWD
+	cfgdata, err := os.ReadFile(name + ".yml")
 	if err != nil {
-		log.Fatalln(err)
+		cfgdata, err = os.ReadFile(config)
+		given := ""
+		if cfggiven {
+			given = ", nor at " + config
+		}
+		if err != nil {
+			log.Fatalln("No configfile found in the current directory" + given + ", nor at the default location")
+		}
   }
 
+	initnf()
 	var cfg interface{}
 	yaml.Unmarshal([]byte(cfgdata), &cfg)
 	cfgslice := cfg.(map[string]interface{})
@@ -239,8 +288,10 @@ func main() {
 		case "varlog":
 			varlog = value.(string)
 		case "whitelist":
-			for _, ip := range value.([]interface{}) {
-				whitelist = append(whitelist, ip.(string))
+			if value != nil {
+				for _, ip := range value.([]interface{}) {
+					whitelist = append(whitelist, ip.(string))
+				}
 			}
 		default:
 			var logsearch logsearch
@@ -264,10 +315,16 @@ func main() {
 				}
 			}
 			if count == 4 { // All 4 properties are needed
-				wg.Add(1)
-				go follow(logsearch)
+				if check {
+					follow(logsearch)
+				} else {
+					wg.Add(1)
+					go follow(logsearch)
+				}
 			}
 		}
 	}
-	wg.Wait()
+	if !check {
+		wg.Wait()
+	}
 }
