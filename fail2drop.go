@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	version   = "0.8.0"
+	version   = "0.8.1"
 	name      = "fail2drop"
 	prefix    = "/usr/local/bin/"
 )
@@ -191,7 +191,7 @@ func install() {
 
 	err = os.WriteFile(prefix+name, bin, 0755)
 	if err != nil {
-		if errors.Is(err, syscall.EACCES) {
+		if errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.ETXTBSY) {
 			log.Fatalln("insufficient permissions, run with root privileges")
 		}
 
