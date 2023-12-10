@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	version   = "0.8.4"
+	version   = "0.8.5
 	name      = "fail2drop"
 	prefix    = "/usr/local/bin/"
 )
@@ -183,25 +183,24 @@ func initnf() {
 }
 
 func install() {
+	// Write the binary if not in PATH
 	exec.Command("systemctl", "stop", name).Run()
 	bin, err := os.ReadFile(os.Args[0])
-	if err != nil {
-		log.Fatalln(err)
-	}
+	if err == nil {
+		err = os.WriteFile(prefix+name, bin, 0755)
+		if err != nil {
+			if errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.ETXTBSY) {
+				log.Fatalln("insufficient permissions, run with root privileges")
+			}
 
-	err = os.WriteFile(prefix+name, bin, 0755)
-	if err != nil {
-		if errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.ETXTBSY) {
-			log.Fatalln("insufficient permissions, run with root privileges")
+			log.Fatalln(err)
 		}
-
-		log.Fatalln(err)
 	}
 
 	var f *os.File
 	f, err = os.OpenFile(config, os.O_CREATE|os.O_EXCL, 0644)
 	if err == nil {
-		f.WriteString(fmt.Sprintf(cfgtmpl))
+		f.WriteString(cfgtmpl)
 	}
 	f.Close()
 
