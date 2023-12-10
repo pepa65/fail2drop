@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	version   = "0.8.2"
+	version   = "0.8.3"
 	name      = "fail2drop"
 	prefix    = "/usr/local/bin/"
 )
@@ -249,42 +249,53 @@ func main() {
 		usage("Too many arguments")
 	}
 
-	cfggiven, doinstall := false, false
+	doinstall, given := false, false
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "help", "-h", "--help":
+			usage("")
 		case "version", "-V", "--version":
 			fmt.Println(name + " v" + version)
 			os.Exit(0)
 
-		case "help", "-h", "--help":
-			usage("")
-		case "install", "-i", "--install":
-			doinstall = true
 		case "uninstall", "-u", "--uninstall":
 			uninstall()
+
+		case "install", "-i", "--install":
+			doinstall = true
 		case "check", "-c", "--check":
 			check = true
 		default:
 			config = os.Args[1]
-			cfggiven = true
+			given = true
 		}
 	}
 
-	// Check configfile present in PWD
-	cfgdata, err := os.ReadFile(name + ".yml")
-	if err != nil {
+	var cfgdata []byte
+	var err error
+	if given { // If specified, only use that as config source
 		cfgdata, err = os.ReadFile(config)
-		given := ""
-		if cfggiven {
-			given = ", nor at " + config
-		}
 		if err != nil {
-			log.Fatalln("No configfile found in the current directory" + given + ", nor at the default location")
+			log.Fatalln("Given configfile not found: " + config)
 		}
-  }
+
+	} else { // If not specified, check PWD
+		cfgdata, err = os.ReadFile(name + ".yml")
+		if err != nil { // If not in PWD, check /etc
+			cfgdata, err = os.ReadFile(config)
+			if err != nil {
+				if doinstall {
+					install()
+				}
+
+				log.Println("No configfile '" + name + ".yml' found in the current directory,")
+				log.Fatalln("nor at the default location: " + config)
+			}
+		}
+	}
 
 	var cfg interface{}
-	yaml.Unmarshal([]byte(cfgdata), &cfg)
+	yaml.Unmarshal(cfgdata, &cfg)
 	cfgslice := cfg.(map[string]interface{})
 	if doinstall {
 		l, ok := cfgslice["varlog"]
@@ -293,6 +304,7 @@ func main() {
 		}
 		install()
 	}
+
 	initnf()
   for key, value := range cfgslice {
 		switch key {
