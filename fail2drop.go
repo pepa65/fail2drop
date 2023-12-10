@@ -135,16 +135,16 @@ func process(logsearch logsearch, line string) {
 
 func follow(logsearch logsearch) {
 	if check {
-		t, ok := tail.TailFile(logsearch.logfile, tail.Config{CompleteLines:true})
-		if ok {
+		t, err := tail.TailFile(logsearch.logfile, tail.Config{MustExist:true, CompleteLines:true})
+		if err == nil {
 			for line := range t.Lines {
 				process(logsearch, line.Text)
 			}
 		}
 	} else {
 		defer wg.Done()
-		t, ok := tail.TailFile(logsearch.logfile, tail.Config{CompleteLines:true, Follow:true, ReOpen:true})
-		if ok {
+		t, err := tail.TailFile(logsearch.logfile, tail.Config{MustExist:true, CompleteLines:true, Follow:true, ReOpen:true})
+		if err == nil {
 			for line := range t.Lines {
 				process(logsearch, line.Text)
 			}
