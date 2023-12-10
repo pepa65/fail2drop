@@ -1,4 +1,4 @@
-# fail2drop v0.8.3
+# fail2drop v0.8.4
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -69,7 +69,7 @@ sudo fail2drop/fail2drop install
 
 ## Usage
 ```
-fail2drop v0.8.3 - Drop repeatedly offending IP addresses with nftables
+fail2drop v0.8.4 - Drop repeatedly offending IP addresses with nftables
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
