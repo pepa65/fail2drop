@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	version   = "0.8.6"
+	version   = "0.8.7"
 	name      = "fail2drop"
 	prefix    = "/usr/local/bin/"
 )
@@ -198,7 +198,7 @@ func install() {
 	}
 
 	var f *os.File
-	f, err = os.OpenFile(config, os.O_CREATE|os.O_EXCL, 0644)
+	f, err = os.OpenFile(config, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
 	if err == nil {
 		f.WriteString(cfgtmpl)
 	}
