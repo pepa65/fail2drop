@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	version   = "0.7.0"
+	version   = "0.8.0"
 	name      = "fail2drop"
 	prefix    = "/usr/local/bin/"
 )
@@ -40,10 +40,10 @@ var (
 	whitelist []string
 	//go:embed unit.tmpl
 	unittmpl string
-	//go:embed config.tmpl
+	//go:embed fail2drop.yml
 	cfgtmpl  string
-	config   = "/etc/fail2drop.yml"
-	varlog   = "/var/log/fail2drop.log"
+	config   = "/etc/" + name + ".yml"
+	varlog   = "/var/log/" + name + ".log"
 	unitname = "/etc/systemd/system/" + name + ".service"
 	records  = map[string]*iprecord{}
 	check    = false
@@ -135,15 +135,19 @@ func process(logsearch logsearch, line string) {
 
 func follow(logsearch logsearch) {
 	if check {
-		t, _ := tail.TailFile(logsearch.logfile, tail.Config{MustExist:true, CompleteLines:true})
-		for line := range t.Lines {
-			process(logsearch, line.Text)
+		t, ok := tail.TailFile(logsearch.logfile, tail.Config{CompleteLines:true})
+		if ok {
+			for line := range t.Lines {
+				process(logsearch, line.Text)
+			}
 		}
 	} else {
 		defer wg.Done()
-		t, _ := tail.TailFile(logsearch.logfile, tail.Config{MustExist:true, CompleteLines:true, Follow:true, ReOpen:true})
-		for line := range t.Lines {
-			process(logsearch, line.Text)
+		t, ok := tail.TailFile(logsearch.logfile, tail.Config{CompleteLines:true, Follow:true, ReOpen:true})
+		if ok {
+			for line := range t.Lines {
+				process(logsearch, line.Text)
+			}
 		}
 	}
 }
@@ -207,7 +211,7 @@ func install() {
 	}
 
 	exec.Command("systemctl", "stop", name).Run()
-	_, err = f.WriteString(fmt.Sprintf(unittmpl, name, version, name, name, name))
+	_, err = f.WriteString(fmt.Sprintf(unittmpl, name, version, name, varlog, varlog))
 	f.Close()
 	if err != nil {
 		log.Fatalln(err, "could not instantiate systemd unit file "+unitname)
@@ -245,7 +249,7 @@ func main() {
 		usage("Too many arguments")
 	}
 
-	cfggiven := false
+	cfggiven, doinstall := false, false
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "version", "-V", "--version":
@@ -255,7 +259,7 @@ func main() {
 		case "help", "-h", "--help":
 			usage("")
 		case "install", "-i", "--install":
-			install()
+			doinstall = true
 		case "uninstall", "-u", "--uninstall":
 			uninstall()
 		case "check", "-c", "--check":
@@ -266,7 +270,7 @@ func main() {
 		}
 	}
 
-	// Use configfile present in PWD
+	// Check configfile present in PWD
 	cfgdata, err := os.ReadFile(name + ".yml")
 	if err != nil {
 		cfgdata, err = os.ReadFile(config)
@@ -279,10 +283,17 @@ func main() {
 		}
   }
 
-	initnf()
 	var cfg interface{}
 	yaml.Unmarshal([]byte(cfgdata), &cfg)
 	cfgslice := cfg.(map[string]interface{})
+	if doinstall {
+		l, ok := cfgslice["varlog"]
+		if ok {
+			varlog = l.(string)
+		}
+		install()
+	}
+	initnf()
   for key, value := range cfgslice {
 		switch key {
 		case "varlog":

@@ -1,4 +1,4 @@
-# fail2drop v0.7.0
+# fail2drop v0.8.0
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -35,7 +35,7 @@
 wget -qO fail2drop "LINK"
 chmod +x fail2drop
 sudo ./fail2drop install
-# Edit /etc/fail2drop.yml and then restart the service:
+# Edit /etc/fail2drop.yml if required
 sudo systemctl restart fail2drop
 ```
 
@@ -45,7 +45,7 @@ sudo systemctl restart fail2drop
 ```
 sudo go install github.com/pepa65/fail2drop@latest
 sudo fail2drop install
-# Edit /etc/fail2drop.yml and then restart the service:
+# Edit /etc/fail2drop.yml if required
 sudo systemctl restart fail2drop
 ```
 
@@ -58,7 +58,7 @@ cd fail2drop
 go build
 sudo cp fail2drop.yml /etc/
 # Edit /etc/fail2drop.yml
-sudo ./fail2drop install
+sudo fail2drop/fail2drop install
 ```
 
 ## Uninstall
@@ -69,7 +69,7 @@ sudo ./fail2drop install
 
 ## Usage
 ```
-fail2drop v0.7.0 - Drop repeatedly offending IP addresses with nftables
+fail2drop v0.8.0 - Drop repeatedly offending IP addresses with nftables
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
@@ -85,7 +85,7 @@ Usage:  fail2drop [ OPTION | CONFIGFILE ]
 ```
 
 ## Configure
-* See the included example configfile `fail2drop.yml`.
+* See the included example configfile `fail2drop.yml` (works for sshd on Ubuntu).
 * The logfile recording the bans is `/var/log/fail2drop.log` by default,
   but can be specified in the configfile with `varlog:`.
 * IP addresses can be whitelisted under `whitelist:` (prepended by `- `).
@@ -94,7 +94,8 @@ Usage:  fail2drop [ OPTION | CONFIGFILE ]
   - `tag:` - The initial search tag to filter lines in the log file
   - `ipregex:` - A regular expression that hopefully contains an offending IP address.
   - `bancount:` - The maximum number of offences allowed.
-* If `/etc/fail2drop.yml` does not exist, `fail2drop install` will put a template there.
+* If `/etc/fail2drop.yml` does not exist, `fail2drop install` will put the repo content
+  of `fail2drop.yml` there. This can be modified and extended.
 
 ## Monitor
 * Check current table with: `sudo nft list ruleset` (from package `nftables`).

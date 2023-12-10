@@ -1,9 +1,7 @@
-varlog: /var/log/fail2drop.log
+#varlog: /var/log/fail2drop.log
 
-whitelist:
-- 192.168.1.10
-- 192.168.1.128
-- 147.78.241.159
+#whitelist:
+#- 192.168.1.1
 
 sshd-auth:
   logfile: '/var/log/auth.log'

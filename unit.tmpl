@@ -4,8 +4,8 @@ After=network.target sshd.service
 
 [Service]
 ExecStart=/usr/local/bin/%s
-StandardOutput=append:/var/log/%s.log
-StandardError=append:/var/log/%s.log
+StandardOutput=append:%s
+StandardError=append:%s
 Restart=always
 RestartSec=5
 
