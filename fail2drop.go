@@ -47,6 +47,7 @@ var (
 	unitname = "/etc/systemd/system/" + name + ".service"
 	records  = map[string]*iprecord{}
 	check    = false
+	once     = false
 	wg       sync.WaitGroup
 )
 
@@ -56,6 +57,7 @@ func usage(msg string) {
 		"Usage:  " + name + " [ OPTION | CONFIGFILE ]\n" +
 		"    OPTION:\n" +
 		"      -c|check:        List to-be-banned IPs without affecting the system.\n" +
+		"      -o|once:         Add to-be-banned IPs after a single run.\n" +
 		"      -i|install:      Install the binary, a template for the configfile, the\n" +
 		"                       systemd unit file and enable & start the service.\n" +
 		"      -u|uninstall:    Stop & disable the service and remove the unit file.\n" +
@@ -134,7 +136,7 @@ func process(logsearch logsearch, line string) {
 }
 
 func follow(logsearch logsearch) {
-	if check {
+	if check || once {
 		t, err := tail.TailFile(logsearch.logfile, tail.Config{MustExist:true, CompleteLines:true})
 		if err == nil {
 			for line := range t.Lines {
@@ -264,6 +266,8 @@ func main() {
 			doinstall = true
 		case "check", "-c", "--check":
 			check = true
+		case "once", "-o", "--once":
+			once = true
 		default:
 			config = os.Args[1]
 			given = true
@@ -337,7 +341,7 @@ func main() {
 				}
 			}
 			if count == 4 { // All 4 properties are needed
-				if check {
+				if check || once {
 					follow(logsearch)
 				} else {
 					wg.Add(1)
@@ -346,7 +350,7 @@ func main() {
 			}
 		}
 	}
-	if !check {
+	if !check && !once {
 		wg.Wait()
 	}
 }

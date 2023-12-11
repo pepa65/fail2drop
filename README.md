@@ -1,4 +1,4 @@
-# fail2drop v0.8.7
+# fail2drop v0.9.0
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -11,10 +11,12 @@
 * Logs to single file which can be specified in configfile.
 * IPs can be whitelisted in configfile.
 * Multiple logfiles can be monitored with multiple patterns and bancounts from configfile.
-* Usage: `fail2drop` [ CFGFILE | `-c`|`check` | `-i`|`install` | `-u`|`uninstall` | `-h`|`help` | `-V`|`version` ]
-  - Can use an alternate configfile from the commandline,
-    otherwise it will first check `$PWD/fail2drop.yml` and finally `/etc/fail2drop.yml`.
+* Usage: `fail2drop` [ CFGFILE | `-c`|`check` | `-o`|`--once` | `-i`|`install` | `-u`|`uninstall` | `-h`|`help` | `-V`|`version` ]
+  - Can use an alternate configfile from the commandline, otherwise 
+    `fail2drop.yml` in the current directory will be used, and finally `/etc/fail2drop.yml`.
   - Can check and list the to-be-banned IP addresses without affecting the system.
+  - Can run once (or being called from `cron` occasionally) to add drop rules to nftables
+    without needing to constantly monitor the log files, for very lightweight operation.
   - Can install the binary, a template for the configfile, the systemd unit file and enable & start the service.
   - Can stop & disable the service and remove the unit file.
   - Can show a help text.
@@ -69,11 +71,12 @@ sudo fail2drop/fail2drop install
 
 ## Usage
 ```
-fail2drop v0.8.7 - Drop repeatedly offending IP addresses with nftables
+fail2drop v0.9.0 - Drop repeatedly offending IP addresses with nftables
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
       -c|check:        List to-be-banned IPs without affecting the system.
+      -o|once:         Add to-be-banned IPs after a single run.
       -i|install:      Install the binary, a template for the configfile, the
                        systemd unit file and enable & start the service.
       -u|uninstall:    Stop & disable the service and remove the unit file.
