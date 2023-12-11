@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	version   = "0.8.7"
+	version   = "0.9.1"
 	name      = "fail2drop"
 	prefix    = "/usr/local/bin/"
 )
@@ -57,7 +57,7 @@ func usage(msg string) {
 		"Usage:  " + name + " [ OPTION | CONFIGFILE ]\n" +
 		"    OPTION:\n" +
 		"      -c|check:        List to-be-banned IPs without affecting the system.\n" +
-		"      -o|once:         Add to-be-banned IPs after a single run.\n" +
+		"      -o|once:         Add to-be-banned IPs in a single run (or from 'cron').\n" +
 		"      -i|install:      Install the binary, a template for the configfile, the\n" +
 		"                       systemd unit file and enable & start the service.\n" +
 		"      -u|uninstall:    Stop & disable the service and remove the unit file.\n" +

@@ -1,4 +1,4 @@
-# fail2drop v0.9.0
+# fail2drop v0.9.1
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -71,12 +71,12 @@ sudo fail2drop/fail2drop install
 
 ## Usage
 ```
-fail2drop v0.9.0 - Drop repeatedly offending IP addresses with nftables
+fail2drop v0.9.1 - Drop repeatedly offending IP addresses with nftables
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
       -c|check:        List to-be-banned IPs without affecting the system.
-      -o|once:         Add to-be-banned IPs after a single run.
+      -o|once:         Add to-be-banned IPs in a single run (or from 'cron').
       -i|install:      Install the binary, a template for the configfile, the
                        systemd unit file and enable & start the service.
       -u|uninstall:    Stop & disable the service and remove the unit file.
