@@ -1,4 +1,4 @@
-# fail2drop v0.9.1
+# fail2drop v0.9.2
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -15,8 +15,9 @@
   - Can use an alternate configfile from the commandline, otherwise 
     `fail2drop.yml` in the current directory will be used, and finally `/etc/fail2drop.yml`.
   - Can check and list the to-be-banned IP addresses without affecting the system.
-  - Can run once (or being called from `cron` occasionally) to add drop rules to nftables
+  - Can run once (or being called from `cron` occasionally) to add drop rules to nftables,
     without needing to constantly monitor the log files, for very lightweight operation.
+		In this case the output is to stdout, so wants to be redirected in cron jobs
   - Can install the binary, a template for the configfile, the systemd unit file and enable & start the service.
   - Can stop & disable the service and remove the unit file.
   - Can show a help text.
@@ -71,7 +72,7 @@ sudo fail2drop/fail2drop install
 
 ## Usage
 ```
-fail2drop v0.9.1 - Drop repeatedly offending IP addresses with nftables
+fail2drop v0.9.2 - Drop repeatedly offending IP addresses with nftables
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
