@@ -1,13 +1,13 @@
-# fail2drop v0.9.2
+# fail2drop v0.9.3
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
 * License: GPLv3+
 * After: github.com/apache2046/fail2drop
-* Linux single binary, Golang source.
+* Linux small single binary distribution, Golang source.
 * IPs dropped in-kernel with Netfilter (nftables) rules.
 * Can install systemd unit file for automated start, runs fine without systemd.
-* Installs configfile template when not present.
+* Installs a basic configfile for sshd when not present.
 * Logs to single file which can be specified in configfile.
 * IPs can be whitelisted in configfile.
 * Multiple logfiles can be monitored with multiple patterns and bancounts from configfile.
@@ -23,7 +23,6 @@
   - Can show a help text.
   - Can show the version.
 * Checking and showing the help text and version does not require privileges, the rest does.
-
 * Default configfile: `/etc/fail2drop.yml`
 
 ## Install
@@ -38,7 +37,7 @@
 wget -qO fail2drop "LINK"
 chmod +x fail2drop
 sudo ./fail2drop install
-# Edit /etc/fail2drop.yml if required
+# Edit /etc/fail2drop.yml if required, and if changed, do:
 sudo systemctl restart fail2drop
 ```
 
@@ -48,7 +47,7 @@ sudo systemctl restart fail2drop
 ```
 sudo go install github.com/pepa65/fail2drop@latest
 sudo fail2drop install
-# Edit /etc/fail2drop.yml if required
+# Edit /etc/fail2drop.yml if required, andif changed, do:
 sudo systemctl restart fail2drop
 ```
 
@@ -71,8 +70,11 @@ sudo fail2drop/fail2drop install
 * The configfile can be removed with: `sudo rm /etc/fail2drop.yml`
 
 ## Usage
+Basically, run continuously through the systemd service file,
+or run occasionally with the `once` option,
+or just check what would get banned by running with the `check` option.
 ```
-fail2drop v0.9.2 - Drop repeatedly offending IP addresses with nftables
+fail2drop v0.9.3 - Drop repeatedly offending IP addresses with nftables
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
@@ -84,7 +86,7 @@ Usage:  fail2drop [ OPTION | CONFIGFILE ]
       -h|help:         Show this help text.
       -V|version:      Show the version.
     CONFIGFILE:        Used if given, otherwise 'fail2drop.yml' in the current
-                       directory and finally '/etc/fail2drop.yml' will get used.
+                       directory or finally '/etc/fail2drop.yml' will get used.
   Privileges are required to run except for 'check', 'help' and 'version'.
 ```
 
@@ -107,6 +109,7 @@ Usage:  fail2drop [ OPTION | CONFIGFILE ]
 * Unban all banned entries: `sudo nft flush table mangle`
 
 ## Update
+Basically, run the new binary with the `install` option.
 ```
 cd fail2drop  # Go to the directory with the cloned repo
 git pull

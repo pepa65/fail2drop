@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	version   = "0.9.2"
+	version   = "0.9.3"
 	name      = "fail2drop"
 	prefix    = "/usr/local/bin/"
 )
@@ -64,7 +64,7 @@ func usage(msg string) {
 		"      -h|help:         Show this help text.\n" +
     "      -V|version:      Show the version.\n" +
 		"    CONFIGFILE:        Used if given, otherwise '" + name + ".yml' in the current\n" +
-		"                       directory and finally '/etc/" + name + ".yml' will get used.\n" +
+		"                       directory or finally '/etc/" + name + ".yml' will get used.\n" +
 		"  Privileges are required to run, except for 'check', 'help' and 'version'."
 	fmt.Println(help)
 	if msg != "" {
