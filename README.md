@@ -1,4 +1,4 @@
-# fail2drop v0.9.4
+# fail2drop v0.9.5
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -64,6 +64,10 @@ sudo chown root:root /etc/fail2drop.yml
 sudo ./fail2drop install
 ```
 
+### Installing for use with cron
+Install, then uninstall (the binary and configfile will stay).
+Then add this command to a crontab: `/usr/local/bin/fail2drop --once >>/var/log/fail2drop.log`
+
 ## Uninstall
 `fail2drop uninstall`
 
@@ -75,7 +79,7 @@ Basically, run continuously through the systemd service file,
 or run occasionally with the `once` option,
 or just check what would get banned by running with the `check` option.
 ```
-fail2drop v0.9.4 - Drop repeatedly offending IP addresses with nftables
+fail2drop v0.9.5 - Drop repeatedly offending IP addresses with nftables
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
