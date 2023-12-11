@@ -1,4 +1,4 @@
-# fail2drop v0.9.3
+# fail2drop v0.9.4
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -60,7 +60,8 @@ cd fail2drop
 go build
 sudo cp fail2drop.yml /etc/
 # Edit /etc/fail2drop.yml
-sudo fail2drop/fail2drop install
+sudo chown root:root /etc/fail2drop.yml
+sudo ./fail2drop install
 ```
 
 ## Uninstall
@@ -74,7 +75,7 @@ Basically, run continuously through the systemd service file,
 or run occasionally with the `once` option,
 or just check what would get banned by running with the `check` option.
 ```
-fail2drop v0.9.3 - Drop repeatedly offending IP addresses with nftables
+fail2drop v0.9.4 - Drop repeatedly offending IP addresses with nftables
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:

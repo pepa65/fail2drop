@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	version   = "0.9.3"
+	version   = "0.9.4"
 	name      = "fail2drop"
 	prefix    = "/usr/local/bin/"
 )
@@ -197,6 +197,7 @@ func install() {
 
 			log.Fatalln(err)
 		}
+		os.Chown(prefix+name, 0, 0)
 	}
 
 	var f *os.File
