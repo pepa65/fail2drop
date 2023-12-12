@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	version   = "0.9.5"
+	version   = "0.9.6"
 	name      = "fail2drop"
 	prefix    = "/usr/local/bin/"
 )
@@ -299,7 +299,11 @@ func main() {
 	}
 
 	var cfg interface{}
-	yaml.Unmarshal(cfgdata, &cfg)
+	err = yaml.Unmarshal(cfgdata, &cfg)
+	if err != nil {
+		log.Fatalln("syntax error in the configfile: " + config)
+	}
+
 	cfgslice := cfg.(map[string]interface{})
 	if doinstall {
 		l, ok := cfgslice["varlog"]
