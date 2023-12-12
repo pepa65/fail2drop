@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	version   = "0.9.5"
-	name      = "fail2drop"
-	prefix    = "/usr/local/bin/"
+	version = "0.9.5"
+	name    = "fail2drop"
+	prefix  = "/usr/local/bin/"
 )
 
 type logsearch struct {
@@ -62,7 +62,7 @@ func usage(msg string) {
 		"                       systemd unit file and enable & start the service.\n" +
 		"      -u|uninstall:    Stop & disable the service and remove the unit file.\n" +
 		"      -h|help:         Show this help text.\n" +
-    "      -V|version:      Show the version.\n" +
+		"      -V|version:      Show the version.\n" +
 		"    CONFIGFILE:        Used if given, otherwise '" + name + ".yml' in the current\n" +
 		"                       directory or finally '/etc/" + name + ".yml' will get used.\n" +
 		"  Privileges are required to run, except for 'check', 'help' and 'version'."
@@ -137,7 +137,7 @@ func process(logsearch logsearch, line string) {
 
 func follow(logsearch logsearch) {
 	if check || once {
-		t, err := tail.TailFile(logsearch.logfile, tail.Config{MustExist:true, CompleteLines:true})
+		t, err := tail.TailFile(logsearch.logfile, tail.Config{MustExist: true, CompleteLines: true})
 		if err == nil {
 			for line := range t.Lines {
 				process(logsearch, line.Text)
@@ -145,7 +145,7 @@ func follow(logsearch logsearch) {
 		}
 	} else {
 		defer wg.Done()
-		t, err := tail.TailFile(logsearch.logfile, tail.Config{MustExist:true, CompleteLines:true, Follow:true, ReOpen:true})
+		t, err := tail.TailFile(logsearch.logfile, tail.Config{MustExist: true, CompleteLines: true, Follow: true, ReOpen: true})
 		if err == nil {
 			for line := range t.Lines {
 				process(logsearch, line.Text)
@@ -310,7 +310,7 @@ func main() {
 	}
 
 	initnf()
-  for key, value := range cfgslice {
+	for key, value := range cfgslice {
 		switch key {
 		case "varlog":
 			varlog = value.(string)
