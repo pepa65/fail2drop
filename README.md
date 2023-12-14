@@ -1,4 +1,4 @@
-# fail2drop v0.9.8
+# fail2drop v0.9.9
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -80,7 +80,7 @@ Basically, run continuously through the systemd service file,
 or run occasionally with the `once` option,
 or just check what would get banned by running with the `check` option.
 ```
-fail2drop v0.9.7 - Drop repeatedly offending IP addresses with nftables
+fail2drop v0.9.9 - Drop repeatedly offending IP addresses with nftables
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
@@ -113,6 +113,21 @@ Usage:  fail2drop [ OPTION | CONFIGFILE ]
 * Check current table with: `sudo nft list ruleset` (from package `nftables`).
 * Check the log of banned IPs: `less /var/log/fail2drop.log`
 * Unban all banned entries: `sudo nft flush table mangle`
+* To remove the ban on a specific IP address, use this function:
+```
+nfdel(){
+  [[ -z $1 ]] &&
+    echo "Error: give IP address as argument" &&
+    return ||
+    echo "Info: trying to remove IP address '$1'"
+  local h=$( nft -a list table ip mangle |grep $1)
+  h=${h##* }
+  [[ -z $h ]] &&
+    echo "IP address '$1' not found in table mangle" &&
+    return
+  nft delete rule mangle FAIL2DROP handle $h &&
+    echo "IP address '$1' with handle '$h' deleted"
+}
 
 ## Update
 Basically, run the new binary with the `install` option.
