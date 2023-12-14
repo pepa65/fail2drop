@@ -1,4 +1,4 @@
-# fail2drop v0.9.7
+# fail2drop v0.9.8
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -66,7 +66,8 @@ sudo ./fail2drop install
 
 ### Installing for use with cron
 Install, then uninstall (the binary and configfile will stay).
-Then add this command to a crontab: `/usr/local/bin/fail2drop --once >>/var/log/fail2drop.log`
+Then add this command to a crontab: `/usr/local/bin/fail2drop --once 2>>/var/log/fail2drop.log`
+(The output of `once` is on stderr.)
 
 ## Uninstall
 `fail2drop uninstall`
