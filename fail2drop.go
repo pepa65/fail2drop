@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"regexp"
@@ -12,7 +13,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/coreos/go-iptables/iptables"
+	nf "github.com/google/nftables"
+	"github.com/google/nftables/expr"
 	"github.com/nxadm/tail"
 	"gopkg.in/yaml.v3"
 )
