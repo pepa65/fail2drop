@@ -7,7 +7,7 @@
 #   will be used if present, otherwise /etc/fail2drop.yml.
 # Required: sudo[or privileged user] grep nftables(nft)
 
-version=0.10.2
+version=0.10.3
 configfile=fail2drop.yml
 
 Err(){ # 1:msg
@@ -173,6 +173,10 @@ do # Process each set
 	stamp="$(date +%Y-%m-%d_%H:%M:%S) [fail2drop.sh v$version]"
 	for ip in $ips
 	do # Process ipv4
+		for w in ${okips[@]}
+		do # Check whitelist
+			[[ $w = $ip ]] && continue 2
+		done
 		[[ -z ${ipcount[$ip]} ]] &&
 			ipcount[$ip]=1 ||
 			((++ipcount[$ip]))
@@ -183,6 +187,10 @@ do # Process each set
 	done
 	for ip in $ip6s
 	do # Process ipv6
+		for w in ${okips[@]}
+		do # Check whitelist
+			[[ $w = $ip ]] && continue 2
+		done
 		[[ -z ${ipcount[$ip]} ]] &&
 			ipcount[$ip]=1 ||
 			((++ipcount[$ip]))
