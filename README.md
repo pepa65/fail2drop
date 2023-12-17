@@ -1,4 +1,4 @@
-# fail2drop v0.10.0
+# fail2drop v0.10.1
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -88,7 +88,8 @@ Install, then uninstall (the binary and configfile will stay).
 Then add this command to a crontab: `/usr/local/bin/fail2drop --once 2>>/var/log/fail2drop.log`
 (The output of `once` is on stderr.)
 
-Or add: `/usr/local/bin/fail2drop.sh >>/var/log/fail2drop.log`
+Or add: `/usr/local/bin/fail2drop.sh 2>>/var/log/fail2drop.log`
+(The output is also on stderr.)
 
 ## Uninstall
 `fail2drop uninstall`

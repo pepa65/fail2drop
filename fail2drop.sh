@@ -7,10 +7,15 @@
 #   will be used if present, otherwise /etc/fail2drop.yml.
 # Required: sudo[or privileged user] grep nftables(nft)
 
-version=0.10.0
+version=0.10.1
 configfile=fail2drop.yml
+
+Err(){ # 1:msg
+	echo "$msg" >&2
+}
+
 (($#>2)) &&
-	echo "Too many arguments, only -n/--noaction / CONFIGFILE allowed" &&
+	Err "Error: Too many arguments, only -n/--noaction / CONFIGFILE allowed" &&
 	exit 1
 
 scan=0
@@ -27,7 +32,7 @@ then
 	fi
 fi
 [[ ! -f $configfile ]] &&
-	echo "Configfile not found: $configfile" &&
+	Err "Error: Configfile not found: $configfile" &&
 	exit 2
 
 # Analyze the configfile
@@ -50,24 +55,24 @@ do
 	;;
 	'- '*) # IP address of whitelist
 		((!whitelist)) &&
-			echo "Error: Stray list item, not in whitelist: '$line'" &&
+			Err "Error: Stray list item, not in whitelist: '$line'" &&
 			exit 3
 		okips+=(${line#- })
 		#echo "- ${line#- }"
 	;;
 	*:) # Set header
 		[[ $set ]] &&
-			echo "Error: Incomplete set: $set" &&
+			Err "Error: Incomplete set: $set" &&
 			exit 4
 		set=${line%:}
 		#echo "$set:"
 	;;
 	logfile:*)
 		[[ -z $set ]] &&
-			echo "Error: logfile attribute not part of a set" &&
+			Err "Error: logfile attribute not part of a set" &&
 			exit 5
 		[[ $logfile ]] &&
-			echo -e "Error: Previous logfile attribute unused: $logfile\nLine: $line" &&
+			Err -e "Error: Previous logfile attribute unused: $logfile\nLine: $line" &&
 			exit 6
 		set -- $line
 		shift
@@ -76,10 +81,10 @@ do
 	;;
 	tag:*)
 		[[ -z $set ]] &&
-			echo "Error: tag attribute not part of a set" &&
+			Err "Error: tag attribute not part of a set" &&
 			exit 7
 		[[ $tag ]] &&
-			echo -e "Error: Previous tag attribute unused: $tag\nLine: $line" &&
+			Err -e "Error: Previous tag attribute unused: $tag\nLine: $line" &&
 			exit 8
 		set -- $line
 		shift
@@ -88,10 +93,10 @@ do
 	;;
 	ipregex:*)
 		[[ -z $set ]] &&
-			echo "Error: ipregex attribute not part of a set" &&
+			Err "Error: ipregex attribute not part of a set" &&
 			exit 9
 		[[ $ipregex ]] &&
-			echo -e "Error: Previous ipregex attribute unused: $ipregex\nLine: $line" &&
+			Err -e "Error: Previous ipregex attribute unused: $ipregex\nLine: $line" &&
 			exit 10
 		set -- $line
 		shift
@@ -100,10 +105,10 @@ do
 	;;
 	bancount:*)
 		[[ -z $set ]] &&
-			echo "Error: bancount attribute not part of a set" &&
+			Err "Error: bancount attribute not part of a set" &&
 			exit 11
 		[[ $bancount ]] &&
-			echo -e "Error: Previous bancount attribute unused: $bancount\nLine: $line" &&
+			Err -e "Error: Previous bancount attribute unused: $bancount\nLine: $line" &&
 			exit 12
 		set -- $line
 		shift
@@ -111,7 +116,7 @@ do
 		#echo "  bancount: $bancount"
 	;;
 	*)
-		echo "Error: Unrecognized entry: $line"
+		Err "Error: Unrecognized entry: $line"
 		exit 13
 	esac
 	if [[ $set && $logfile && $tag && $ipregex && $bancount ]]
@@ -125,7 +130,7 @@ do
 	fi
 done <"$configfile"
 [[ $set ]] &&
-	echo "Error: incomplete set '$set'" &&
+	Err "Error: incomplete set '$set'" &&
 	exit 14
 
 # Exit if nothing to process
@@ -136,7 +141,7 @@ sudo=
 	sudo=sudo
 if ((!scan))
 then # Set up nftable fail2drop
-	$sudo nft delete table inet fail2drop
+	$sudo nft delete table inet fail2drop 2>/dev/null
 	nftconf="
 table inet fail2drop {
    set badip {
@@ -148,7 +153,7 @@ table inet fail2drop {
     flags interval;
   };
   chain FAIL2DROP {
-    type filter hook input priority first; policy accept;
+    type filter hook input priority filter; policy accept;
     ip saddr @badip counter packets 0 bytes 0 drop;
     ip6 saddr @badip6 counter packets 0 bytes 0 drop;
   }
@@ -172,7 +177,7 @@ do # Process each set
 			ipcount[$ip]=1 ||
 			((++ipcount[$ip]))
 		((ipcount[$ip] == bancounts[$i])) &&
-			echo "$stamp '${sets[$i]}' ban $ip" &&
+			Err "$stamp '${sets[$i]}' ban $ip" &&
 			((!scan)) &&
 			$sudo nft add element inet fail2drop badip "{$ip}"
 	done
@@ -182,7 +187,7 @@ do # Process each set
 			ipcount[$ip]=1 ||
 			((++ipcount[$ip]))
 		((ipcount[$ip] == bancounts[$i])) &&
-			echo "$stamp '${sets[$i]}' ban $ip" &&
+			Err "$stamp '${sets[$i]}' ban $ip" &&
 			((!scan)) &&
 			$sudo nft add element inet fail2drop badip6 "{$ip}"
 	done
