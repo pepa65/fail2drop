@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
 # fail2drop.sh - The 'check' and 'once' functionality of fail2drop in bash
-# Usage: fail2scan [-n|--noaction | CONFIGFILE]
+# Usage: fail2drop.sh [-n|--noaction | CONFIGFILE]
 #     -n/--noaction: No system changes, just show what would be logged (check)
 #   If CONFIGFILE is not given, then fail2drop.yml in the current directory
 #   will be used if present, otherwise /etc/fail2drop.yml.
 # Required: sudo[or privileged user] grep nftables(nft)
 
-version=0.10.3
+version=0.10.4
 configfile=fail2drop.yml
 
 Err(){ # 1:msg
@@ -18,18 +18,14 @@ Err(){ # 1:msg
 	Err "Error: Too many arguments, only -n/--noaction / CONFIGFILE allowed" &&
 	exit 1
 
-scan=0
+[[ ! -f $configfile ]] &&
+	configfile=/etc/$configfile
+check=0
 if [[ $1 ]]
 then
-	if [[ $1 = -n || $1 = --noaction || $1 = -c || $1 = --check ]]
-	then # No configfile specified
-		scan=1
-		[[ ! -f $configfile ]] &&
-			configfile=/etc/$configfile
-	else # Must be configfile
-		scan=0
+	[[ $1 = -n || $1 = --noaction || $1 = -c || $1 = --check ]] &&
+		check=1 ||
 		configfile=$1
-	fi
 fi
 [[ ! -f $configfile ]] &&
 	Err "Error: Configfile not found: $configfile" &&
@@ -139,7 +135,7 @@ done <"$configfile"
 sudo=
 ((EUID)) &&
 	sudo=sudo
-if ((!scan))
+if ((!check))
 then # Set up nftable fail2drop
 	$sudo nft delete table inet fail2drop 2>/dev/null
 	nftconf="
@@ -182,7 +178,7 @@ do # Process each set
 			((++ipcount[$ip]))
 		((ipcount[$ip] == bancounts[$i])) &&
 			Err "$stamp '${sets[$i]}' ban $ip" &&
-			((!scan)) &&
+			((!check)) &&
 			$sudo nft add element inet fail2drop badip "{$ip}"
 	done
 	for ip in $ip6s
@@ -196,7 +192,7 @@ do # Process each set
 			((++ipcount[$ip]))
 		((ipcount[$ip] == bancounts[$i])) &&
 			Err "$stamp '${sets[$i]}' ban $ip" &&
-			((!scan)) &&
+			((!check)) &&
 			$sudo nft add element inet fail2drop badip6 "{$ip}"
 	done
 done
