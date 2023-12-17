@@ -1,13 +1,18 @@
-# fail2drop v0.9.10
+# fail2drop v0.10.0
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
 * License: GPLv3+
 * After: github.com/apache2046/fail2drop
+* Required: `nftables` (nft) and `sudo` (or privileged user)
 * Linux small single binary distribution, Golang source, EXCEPT:
-* Requires `nftables` to be installed and used when `iptables` gets invoked
+  Requires `nftables` to be installed and used when `iptables` gets invoked
   (on Debian-based systems: `/etc/alternatives/iptables` softlinks to `/usr/sbin/iptables-nft`).
   Otherwise, the actual kernel rules do not get added (see output of `nft list ruleset`).
+* For really small, just get `fail2drop.sh` in bash, it does 'check' and 'once' but
+  does not keep running concurrently to process the logfiles (also requires `grep`).
+	- `fail2drop.sh` is equivalent to `fail2drop --once`.
+	- `fail2drop.sh --noaction` is equivalent to `fail2drop --check`.
 * IPs dropped in-kernel with Netfilter (nftables) rules.
 * Can install systemd unit file for automated start, runs fine without systemd.
 * Installs a basic configfile for sshd when not present.
@@ -44,6 +49,17 @@ sudo ./fail2drop install
 sudo systemctl restart fail2drop
 ```
 
+Or for `fail2drop.sh`:
+```
+wget -q https://gitlab.com/pepa65/fail2drop/raw/main/fail2drop.sh
+chmod +x fail2drop.sh
+sudo cp fail2drop.sh /usr/local/bin/
+sudo chown root:root /usr/local/bin/fail2drop.sh
+wget -q https://gitlab.com/pepa65/fail2drop/raw/main/fail2drop.yml
+sudo cp fail2drop.sh /etc/
+sudo chown root:root /etc/fail2drop.yml
+```
+
 ### Installing with go
 * Required: `go`
 
@@ -72,6 +88,8 @@ Install, then uninstall (the binary and configfile will stay).
 Then add this command to a crontab: `/usr/local/bin/fail2drop --once 2>>/var/log/fail2drop.log`
 (The output of `once` is on stderr.)
 
+Or add: `/usr/local/bin/fail2drop.sh >>/var/log/fail2drop.log`
+
 ## Uninstall
 `fail2drop uninstall`
 
@@ -83,7 +101,7 @@ Basically, run continuously through the systemd service file,
 or run occasionally with the `once` option,
 or just check what would get banned by running with the `check` option.
 ```
-fail2drop v0.9.10 - Drop repeatedly offending IP addresses with nftables
+fail2drop v0.10.0 - Drop repeatedly offending IP addresses with nftables
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
@@ -113,9 +131,9 @@ Usage:  fail2drop [ OPTION | CONFIGFILE ]
   of `fail2drop.yml` there. This can be modified and extended.
 
 ## Monitor
-* Check current table with: `sudo nft list ruleset` (from package `nftables`).
+* Check current table with: `sudo nft list ruleset` (`nft` from package `nftables`).
 * Check the log of banned IPs: `less /var/log/fail2drop.log`
-* Unban all banned entries: `sudo nft flush table mangle`
+* Unban all banned entries: `sudo nft delete inet table fail2drop`
 * To remove the ban on a specific IP address, use this function:
 ```
 nfdel(){
@@ -140,3 +158,5 @@ git pull
 go build
 ./fail2drop install
 ```
+
+To update the bash version `fail2drop.sh`, see: **Installing by downloading the self-contained binary**
