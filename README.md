@@ -1,4 +1,4 @@
-# fail2drop v0.10.1
+# fail2drop v0.10.2
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -102,7 +102,7 @@ Basically, run continuously through the systemd service file,
 or run occasionally with the `once` option,
 or just check what would get banned by running with the `check` option.
 ```
-fail2drop v0.10.0 - Drop repeatedly offending IP addresses with nftables
+fail2drop v0.10.2 - Drop repeatedly offending IP addresses with nftables
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:

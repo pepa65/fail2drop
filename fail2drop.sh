@@ -7,11 +7,11 @@
 #   will be used if present, otherwise /etc/fail2drop.yml.
 # Required: sudo[or privileged user] grep nftables(nft)
 
-version=0.10.1
+version=0.10.2
 configfile=fail2drop.yml
 
 Err(){ # 1:msg
-	echo "$msg" >&2
+	echo "$1" >&2
 }
 
 (($#>2)) &&
