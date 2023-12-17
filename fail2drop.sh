@@ -7,7 +7,7 @@
 #   will be used if present, otherwise /etc/fail2drop.yml.
 # Required: sudo[or privileged user] grep nftables(nft)
 
-version=0.10.4
+version=0.10.5
 configfile=fail2drop.yml
 
 Err(){ # 1:msg
@@ -57,6 +57,7 @@ do
 		#echo "- ${line#- }"
 	;;
 	*:) # Set header
+		whitelist=0
 		[[ $set ]] &&
 			Err "Error: Incomplete set: $set" &&
 			exit 4
@@ -64,6 +65,7 @@ do
 		#echo "$set:"
 	;;
 	logfile:*)
+		whitelist=0
 		[[ -z $set ]] &&
 			Err "Error: logfile attribute not part of a set" &&
 			exit 5
@@ -76,6 +78,7 @@ do
 		#echo "  logfile: $logfile"
 	;;
 	tag:*)
+		whitelist=0
 		[[ -z $set ]] &&
 			Err "Error: tag attribute not part of a set" &&
 			exit 7
@@ -88,6 +91,7 @@ do
 		#echo "  tag: $tag"
 	;;
 	ipregex:*)
+		whitelist=0
 		[[ -z $set ]] &&
 			Err "Error: ipregex attribute not part of a set" &&
 			exit 9
@@ -100,6 +104,7 @@ do
 		#echo "  ipregex: $ipregex"
 	;;
 	bancount:*)
+		whitelist=0
 		[[ -z $set ]] &&
 			Err "Error: bancount attribute not part of a set" &&
 			exit 11
