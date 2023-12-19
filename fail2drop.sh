@@ -7,8 +7,9 @@
 #   will be used if present, otherwise /etc/fail2drop.yml.
 # Required: sudo[or privileged user] grep nftables(nft)
 
-version=0.10.5
+version=0.10.6
 configfile=fail2drop.yml
+nft=/usr/sbin/nft
 
 Err(){ # 1:msg
 	echo "$1" >&2
@@ -142,7 +143,7 @@ sudo=
 	sudo=sudo
 if ((!check))
 then # Set up nftable fail2drop
-	$sudo nft delete table inet fail2drop 2>/dev/null
+	$sudo $nft delete table inet fail2drop 2>/dev/null
 	nftconf="
 table inet fail2drop {
    set badip {
@@ -159,7 +160,7 @@ table inet fail2drop {
     ip6 saddr @badip6 counter packets 0 bytes 0 drop;
   }
 }"
-	echo "$nftconf" |$sudo nft -f -
+	echo "$nftconf" |$sudo $nft -f -
 fi
 
 declare -A ipcount
@@ -184,7 +185,7 @@ do # Process each set
 		((ipcount[$ip] == bancounts[$i])) &&
 			Err "$stamp '${sets[$i]}' ban $ip" &&
 			((!check)) &&
-			$sudo nft add element inet fail2drop badip "{$ip}"
+			$sudo $nft add element inet fail2drop badip "{$ip}"
 	done
 	for ip in $ip6s
 	do # Process ipv6
@@ -198,6 +199,6 @@ do # Process each set
 		((ipcount[$ip] == bancounts[$i])) &&
 			Err "$stamp '${sets[$i]}' ban $ip" &&
 			((!check)) &&
-			$sudo nft add element inet fail2drop badip6 "{$ip}"
+			$sudo $nft add element inet fail2drop badip6 "{$ip}"
 	done
 done

@@ -1,4 +1,4 @@
-# fail2drop v0.10.5
+# fail2drop v0.10.6
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
@@ -13,6 +13,7 @@
   does not keep running concurrently to process the logfiles (also requires `grep`).
 	- `fail2drop.sh` is equivalent to `fail2drop --once`.
 	- `fail2drop.sh --noaction` is equivalent to `fail2drop --check`.
+  The binary `nft` is supposed to be installed in `/usr/sbin/nft`.
 * IPs dropped in-kernel with Netfilter (nftables) rules.
 * Can install systemd unit file for automated start, runs fine without systemd.
 * Installs a basic configfile for sshd when not present.
@@ -102,7 +103,7 @@ Basically, run continuously through the systemd service file,
 or run occasionally with the `once` option,
 or just check what would get banned by running with the `check` option.
 ```
-fail2drop v0.10.5 - Drop repeatedly offending IP addresses with nftables
+fail2drop v0.10.6 - Drop repeatedly offending IP addresses with nftables
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
