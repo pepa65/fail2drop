@@ -41,6 +41,17 @@ sudo ./fail2drop install
 sudo systemctl restart fail2drop
 ```
 
+Or for `fail2drop.sh`:
+```
+wget -q https://gitlab.com/pepa65/fail2drop/raw/main/fail2drop.sh
+chmod +x fail2drop.sh
+sudo cp fail2drop.sh /usr/local/bin/
+sudo chown root:root /usr/local/bin/fail2drop.sh
+wget -q https://gitlab.com/pepa65/fail2drop/raw/main/fail2drop.yml
+sudo cp fail2drop.sh /etc/
+sudo chown root:root /etc/fail2drop.yml
+```
+
 ### Installing with go
 * Required: `go`
 
@@ -68,6 +79,9 @@ sudo ./fail2drop install
 Install, then uninstall (the binary and configfile will stay).
 Then add this command to a crontab: `/usr/local/bin/fail2drop --once 2>>/var/log/fail2drop.log`
 (The output of `once` is on stderr.)
+
+Or add: `/usr/local/bin/fail2drop.sh 2>>/var/log/fail2drop.log`
+(The output is also on stderr.)
 
 ## Uninstall
 `fail2drop uninstall`
@@ -110,9 +124,9 @@ Usage:  fail2drop [ OPTION | CONFIGFILE ]
   of `fail2drop.yml` there. This can be modified and extended.
 
 ## Monitor
-* Check current table with: `sudo nft list ruleset` (from package `nftables`).
+* Check current table with: `sudo nft list ruleset` (`nft` from package `nftables`).
 * Check the log of banned IPs: `less /var/log/fail2drop.log`
-* Unban all banned entries: `sudo nft flush table mangle`
+* Unban all banned entries: `sudo nft delete inet table fail2drop`
 * To remove the ban on a specific IP address, use this function:
 ```
 nfdel(){
@@ -137,3 +151,5 @@ git pull
 go build
 ./fail2drop install
 ```
+
+To update the bash version `fail2drop.sh`, see: **Installing by downloading the self-contained binary**
