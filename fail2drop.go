@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net"
+	//"net"
 	"os"
 	"os/exec"
 	"regexp"
@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	version = "0.9.9"
+	version = "0.11.0"
 	name    = "fail2drop"
 	prefix  = "/usr/local/bin/"
 )
@@ -51,10 +51,25 @@ var (
 	check    = false
 	once     = false
 	wg       sync.WaitGroup
+	c        = &nf.Conn{}
+	table    = &nf.Table{
+		Family: nf.TableFamilyINet,
+		Name:   "fail2drop",
+	}
+	set4     = &nf.Set{
+		Name:    "badip",
+		Table:   table,
+		KeyType: nf.TypeIPAddr,
+	}
+	set6     = &nf.Set{
+		Name:    "badip6",
+		Table:   table,
+		KeyType: nf.TypeIP6Addr,
+	}
 )
 
 func usage(msg string) {
-	help := name + " v" + version + " - Drop repeatedly offending IP addresses with nftables\n" +
+	help := name + " v" + version + " - Drop repeat-offending IP addresses in-kernel (netfilter)\n" +
 		"Repo:   github.com/pepa65/fail2drop\n" +
 		"Usage:  " + name + " [ OPTION | CONFIGFILE ]\n" +
 		"    OPTION:\n" +
@@ -78,24 +93,19 @@ func usage(msg string) {
 }
 
 func banip(ipaddr, set string) {
-	var ipt *iptables.IPTables
-	var err error
-	if strings.Contains(ipaddr, ".") {
-		ipt, err = iptables.New(iptables.IPFamily(iptables.ProtocolIPv4), iptables.Timeout(5))
-	} else {
-		ipt, err = iptables.New(iptables.IPFamily(iptables.ProtocolIPv6), iptables.Timeout(5))
-	}
-	if err != nil {
-		log.Fatalln(err)
-	}
-
 	for _, ip := range whitelist {
 		if ip == ipaddr {
 			return
 		}
 	}
+
 	if !check {
-		err = ipt.AppendUnique("mangle", "FAIL2DROP", "--src", ipaddr, "-j", "DROP")
+		var err error
+		if strings.Contains(ipaddr, ".") { // IPv4
+			err = c.SetAddElements(set4, []nf.SetElement{{Key: []byte(ipaddr)}});
+		} else { // IPv6
+			err = c.SetAddElements(set6, []nf.SetElement{{Key: []byte(ipaddr)}});
+		}
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -160,30 +170,94 @@ func initnf() {
 	if check {
 		return
 	}
-
-	for _, proto := range []iptables.Protocol{iptables.ProtocolIPv4, iptables.ProtocolIPv6} {
-		ipt, err := iptables.New(iptables.IPFamily(proto), iptables.Timeout(5))
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		exist, err := ipt.ChainExists("mangle", "FAIL2DROP")
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		if !exist {
-			err = ipt.NewChain("mangle", "FAIL2DROP")
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			err = ipt.Insert("mangle", "PREROUTING", 1, "-j", "FAIL2DROP")
-			if err != nil {
-				log.Fatalln(err)
-			}
-		}
+	// nft add table inet fail2drop
+	table = c.AddTable(table)
+	// nft add set inet fail2drop badip '{type ipv4_addr;}'
+	c.AddSet(set4, []nf.SetElement{})
+	// nft add set inet fail2drop badip6 '{type ipv6_addr;}'
+	c.AddSet(set6, []nf.SetElement{})
+	// nft add chain inet fail2drop FAIL2DROP
+	chain := &nf.Chain{
+		Name:    "FAIL2DROP",
+		Table:   table,
+		Type:    nf.ChainTypeFilter,
+		Hooknum: nf.ChainHookInput,
+		Priority: nf.ChainPriorityFilter,
 	}
+	chain = c.AddChain(chain)
+	// nft add rule inet fail2drop FAIL2DROP ip saddr @badip counter drop
+	counter4 := &nf.CounterObj{
+		Table: table,
+		Name:  "count",
+	}
+	c.AddObj(counter4)
+	rule := &nf.Rule{
+		Table: table,
+		Chain: chain,
+		Exprs: []expr.Any{
+			// payload load 4b @ network header + 12 (saddr) => reg 1
+			&expr.Payload{
+				DestRegister: 1,
+				Base:         expr.PayloadBaseNetworkHeader,
+				Offset:       12,
+				Len:          4,
+			},
+			// lookup reg 1 in set4
+			&expr.Lookup{
+				SourceRegister: 1,
+				SetName:        set4.Name,
+				SetID:          set4.ID,
+			},
+			// counter "count4"
+			&expr.Objref{
+				Type: 1,
+				Name: counter4.Name,
+			},
+			// immediate reg 0 drop
+			&expr.Verdict{
+				Kind: expr.VerdictDrop,
+			},
+		},
+	}
+	c.AddRule(rule)
+	// nft add rule inet fail2drop FAIL2DROP ip6 saddr @badip8 counter drop
+	counter6 := &nf.CounterObj{
+		Table: table,
+		Name:  "count6",
+	}
+	c.AddObj(counter6)
+	rule = &nf.Rule{
+		Table: table,
+		Chain: chain,
+		Exprs: []expr.Any{
+			// payload load 16b @ network header + 8 => reg 1
+			&expr.Payload{
+				DestRegister: 1,
+				Base:         expr.PayloadBaseNetworkHeader,
+				Offset:       8,
+				Len:          16,
+			},
+			// lookup reg 1 in set6
+			&expr.Lookup{
+				SourceRegister: 1,
+				SetName:        set6.Name,
+				SetID:          set6.ID,
+			},
+			// counter 'count6'
+			&expr.Objref{
+				Type: 1,
+				Name: counter6.Name,
+			},
+			// immediate reg 0 drop
+			&expr.Verdict{
+				Kind: expr.VerdictDrop,
+			},
+		},
+	}
+	c.AddRule(rule)
+	// # nft add element inet fail2drop badip '{1.1.1.1;}'
+	// # nft add element inet fail2drop badip6 '{2403:6200:8858:50e:553e:bf75:271:a39b;}'
+	c.Flush()
 }
 
 func install() {

@@ -1,10 +1,10 @@
-# fail2drop v0.9.9
-**Drop repeatedly offending IP addresses with nftables**
+# fail2drop v0.11.0
+**Drop repeat-offending IP addresses in-kernel (netfilter)**
 
 * Repo: github.com/pepa65/fail2drop
 * License: GPLv3+
 * After: github.com/apache2046/fail2drop
-* Linux small single binary distribution, Golang source.
+* Linux single stand-alone binary distribution with Golang source.
 * IPs dropped in-kernel with Netfilter (nftables) rules.
 * Can install systemd unit file for automated start, runs fine without systemd.
 * Installs a basic configfile for sshd when not present.
@@ -80,7 +80,7 @@ Basically, run continuously through the systemd service file,
 or run occasionally with the `once` option,
 or just check what would get banned by running with the `check` option.
 ```
-fail2drop v0.9.9 - Drop repeatedly offending IP addresses with nftables
+fail2drop v0.11.0 - Drop repeat-offending IP addresses in-kernel (netfilter)
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
