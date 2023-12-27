@@ -1,19 +1,10 @@
-# fail2drop v0.10.7
-**Drop repeatedly offending IP addresses with nftables**
+# fail2drop v0.11.0
+**Drop repeat-offending IP addresses in-kernel (netfilter)**
 
 * Repo: github.com/pepa65/fail2drop
 * License: GPLv3+
 * After: github.com/apache2046/fail2drop
-* Required: `nftables` (nft) and `sudo` (or privileged user)
-* Linux small single binary distribution, Golang source, EXCEPT:
-  Requires `nftables` to be installed and used when `iptables` gets invoked
-  (on Debian-based systems: `/etc/alternatives/iptables` softlinks to `/usr/sbin/iptables-nft`).
-  Otherwise, the actual kernel rules do not get added (see output of `nft list ruleset`).
-* For really small, just get `fail2drop.sh` in bash, it does 'check' and 'once' but
-  does not keep running concurrently to process the logfiles (also requires `grep`).
-	- `fail2drop.sh` is equivalent to `fail2drop --once`.
-	- `fail2drop.sh --noaction` is equivalent to `fail2drop --check`.
-  The binary `nft` is supposed to be installed in `/usr/sbin/nft`.
+* Linux single stand-alone binary distribution with Golang source.
 * IPs dropped in-kernel with Netfilter (nftables) rules.
 * Can install systemd unit file for automated start, runs fine without systemd.
 * Installs a basic configfile for sshd when not present.
@@ -103,7 +94,7 @@ Basically, run continuously through the systemd service file,
 or run occasionally with the `once` option,
 or just check what would get banned by running with the `check` option.
 ```
-fail2drop v0.10.7 - Drop repeatedly offending IP addresses with nftables
+fail2drop v0.11.0 - Drop repeat-offending IP addresses in-kernel (netfilter)
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
