@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	version = "0.11.0"
+	version = "0.11.1"
 	name    = "fail2drop"
 	prefix  = "/usr/local/bin/"
 )
@@ -99,16 +99,12 @@ func banip(ipaddr, set string) {
 	}
 
 	if !check {
-<<<<<<< HEAD
-		err = ipt.AppendUnique("fail2drop", "FAIL2DROP", "--src", ipaddr, "-j", "DROP")
-=======
 		var err error
 		if strings.Contains(ipaddr, ".") { // IPv4
 			err = c.SetAddElements(set4, []nf.SetElement{{Key: []byte(ipaddr)}});
 		} else { // IPv6
 			err = c.SetAddElements(set6, []nf.SetElement{{Key: []byte(ipaddr)}});
 		}
->>>>>>> bee5a04ef9c50b29293ee88066a7707b62b92768
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -173,31 +169,9 @@ func initnf() {
 	if check {
 		return
 	}
-<<<<<<< HEAD
 
-	for _, proto := range []iptables.Protocol{iptables.ProtocolIPv4, iptables.ProtocolIPv6} {
-		ipt, err := iptables.New(iptables.IPFamily(proto), iptables.Timeout(5))
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		exist, err := ipt.ChainExists("fail2drop", "FAIL2DROP")
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		if !exist {
-			err = ipt.NewChain("fail2drop", "FAIL2DROP")
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			err = ipt.Insert("fail2drop", "PREROUTING", 1, "-j", "FAIL2DROP")
-			if err != nil {
-				log.Fatalln(err)
-			}
-		}
-=======
+	// nft delete table inet fail2drop
+	c.DelTable(table)
 	// nft add table inet fail2drop
 	table = c.AddTable(table)
 	// nft add set inet fail2drop badip '{type ipv4_addr;}'
@@ -211,7 +185,6 @@ func initnf() {
 		Type:    nf.ChainTypeFilter,
 		Hooknum: nf.ChainHookInput,
 		Priority: nf.ChainPriorityFilter,
->>>>>>> bee5a04ef9c50b29293ee88066a7707b62b92768
 	}
 	chain = c.AddChain(chain)
 	// nft add rule inet fail2drop FAIL2DROP ip saddr @badip counter drop
@@ -284,8 +257,8 @@ func initnf() {
 		},
 	}
 	c.AddRule(rule)
-	// # nft add element inet fail2drop badip '{1.1.1.1;}'
-	// # nft add element inet fail2drop badip6 '{2403:6200:8858:50e:553e:bf75:271:a39b;}'
+	// # nft add element inet fail2drop badip '{1.1.1.1}'
+	// # nft add element inet fail2drop badip6 '{2403:6200:8858:50e:553e:bf75:271:a39b}'
 	c.Flush()
 }
 
