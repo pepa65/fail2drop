@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	version = "0.10.6"
+	version = "0.10.7"
 	name    = "fail2drop"
 	prefix  = "/usr/local/bin/"
 )
