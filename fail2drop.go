@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	version = "0.12.0"
+	version = "0.12.1"
 	name    = "fail2drop"
 	prefix  = "/usr/local/bin/"
 )
@@ -100,28 +100,28 @@ func banip(ipaddr, set string) {
 			log.Fatalln("Error: nftable table inet fail2drop not found")
 		}
 		chain := &nf.Chain{}
-		chains, _ := conn.ListChains()
+		chains, _ := conn.ListChainsOfTableFamily(nf.TableFamilyINet)
 		for _, c := range chains {
 			if c.Name == "FAIL2DROP" {
 				chain = c
 				break
 			}
 		}
-		if chain.Name != "FAIL2FROP" {
+		if chain.Name != "FAIL2DROP" {
 			log.Fatalln("Error: nftable chain FAIL2DROP on table inet fail2drop not found")
 		}
 		ip := []byte(net.ParseIP(ipaddr))
 		rule := &nf.Rule{}
 		rules, _ := conn.GetRules(fail2drop, chain)
 		for _, r := range rules {
-			if slices.Equal(r.UserData, ip) {
+			if slices.Equal(r.UserData, []byte(ipaddr)) {
 				return
 			}
 		}
 		if strings.Contains(ipaddr, ".") { // IPv4
 			// nft add rule inet fail2drop FAIL2DROP ip saddr IPADDR counter drop
 			rule = &nf.Rule{
-				UserData: ip,
+				UserData: []byte(ipaddr),
 				Table:    fail2drop,
 				Chain:    chain,
 				Exprs:    []expr.Any{
@@ -136,8 +136,9 @@ func banip(ipaddr, set string) {
 					&expr.Cmp{
 						Op:       expr.CmpOpEq,
 						Register: 1,
-						Data:     ip, // []byte
+						Data:     ip[12:], // Last 4 bytes
 					},
+					&expr.Counter{Bytes: 0, Packets: 0},
 					// immediate reg 0 drop
 					&expr.Verdict{
 						Kind: expr.VerdictDrop,
@@ -147,7 +148,7 @@ func banip(ipaddr, set string) {
 		} else { // IPv6
 			// nft add rule inet fail2drop FAIL2DROP ip6 saddr IPADDR counter drop
 			rule = &nf.Rule{
-				UserData: ip,
+				UserData: []byte(ipaddr),
 				Table:    fail2drop,
 				Chain:    chain,
 				Exprs:    []expr.Any{
@@ -162,8 +163,9 @@ func banip(ipaddr, set string) {
 					&expr.Cmp{
 						Op:       expr.CmpOpEq,
 						Register: 1,
-						Data:     ip, // []byte
+						Data:     ip,
 					},
+					&expr.Counter{Bytes: 0, Packets: 0},
 					// immediate reg 0 drop
 					&expr.Verdict{
 						Kind: expr.VerdictDrop,
