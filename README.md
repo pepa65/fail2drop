@@ -1,10 +1,10 @@
-# fail2drop v0.10.7
+# fail2drop v0.10.8
 **Drop repeatedly offending IP addresses with nftables**
 
 * Repo: github.com/pepa65/fail2drop
 * License: GPLv3+
 * After: github.com/apache2046/fail2drop
-* Required: `nftables` (nft) and `sudo` (or privileged user)
+* Required: `nftables` (`nft`) and `sudo` (or privileged user)
 * Linux small single binary distribution, Golang source, EXCEPT:
   Requires `nftables` to be installed and used when `iptables` gets invoked
   (on Debian-based systems: `/etc/alternatives/iptables` softlinks to `/usr/sbin/iptables-nft`).
@@ -103,7 +103,7 @@ Basically, run continuously through the systemd service file,
 or run occasionally with the `once` option,
 or just check what would get banned by running with the `check` option.
 ```
-fail2drop v0.10.7 - Drop repeatedly offending IP addresses with nftables
+fail2drop v0.10.8 - Drop repeat-offending IP addresses in-kernel (netfilter)
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:

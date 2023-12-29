@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	version = "0.10.7"
+	version = "0.10.8"
 	name    = "fail2drop"
 	prefix  = "/usr/local/bin/"
 )
@@ -52,7 +52,7 @@ var (
 )
 
 func usage(msg string) {
-	help := name + " v" + version + " - Drop repeatedly offending IP addresses with nftables\n" +
+	help := name + " v" + version + " - Drop repeat-offending IP addresses in-kernel (netfilter)\n" +
 		"Repo:   github.com/pepa65/fail2drop\n" +
 		"Usage:  " + name + " [ OPTION | CONFIGFILE ]\n" +
 		"    OPTION:\n" +
