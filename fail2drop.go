@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"regexp"
@@ -15,11 +16,12 @@ import (
 	nf "github.com/google/nftables"
 	"github.com/google/nftables/expr"
 	"github.com/nxadm/tail"
+	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 )
 
 const (
-	version = "0.11.1"
+	version = "0.12.0"
 	name    = "fail2drop"
 	prefix  = "/usr/local/bin/"
 )
@@ -50,21 +52,6 @@ var (
 	check    = false
 	once     = false
 	wg       sync.WaitGroup
-	c        = &nf.Conn{}
-	table    = &nf.Table{
-		Family: nf.TableFamilyINet,
-		Name:   "fail2drop",
-	}
-	set4     = &nf.Set{
-		Name:    "badip",
-		Table:   table,
-		KeyType: nf.TypeIPAddr,
-	}
-	set6     = &nf.Set{
-		Name:    "badip6",
-		Table:   table,
-		KeyType: nf.TypeIP6Addr,
-	}
 )
 
 func usage(msg string) {
@@ -100,11 +87,95 @@ func banip(ipaddr, set string) {
 
 	if !check {
 		var err error
-		if strings.Contains(ipaddr, ".") { // IPv4
-			err = c.SetAddElements(set4, []nf.SetElement{{Key: []byte(ipaddr)}});
-		} else { // IPv6
-			err = c.SetAddElements(set6, []nf.SetElement{{Key: []byte(ipaddr)}});
+		conn := &nf.Conn{}
+		fail2drop := &nf.Table{}
+		tables, _ := conn.ListTables()
+		for _, t := range tables {
+			if t.Name == "fail2drop" {
+	 			fail2drop = t
+				break
+			}
 		}
+		if fail2drop.Name != "fail2drop" {
+			log.Fatalln("Error: nftable table inet fail2drop not found")
+		}
+		chain := &nf.Chain{}
+		chains, _ := conn.ListChains()
+		for _, c := range chains {
+			if c.Name == "FAIL2DROP" {
+				chain = c
+				break
+			}
+		}
+		if chain.Name != "FAIL2FROP" {
+			log.Fatalln("Error: nftable chain FAIL2DROP on table inet fail2drop not found")
+		}
+		ip := []byte(net.ParseIP(ipaddr))
+		rule := &nf.Rule{}
+		rules, _ := conn.GetRules(fail2drop, chain)
+		for _, r := range rules {
+			if slices.Equal(r.UserData, ip) {
+				return
+			}
+		}
+		if strings.Contains(ipaddr, ".") { // IPv4
+			// nft add rule inet fail2drop FAIL2DROP ip saddr IPADDR counter drop
+			rule = &nf.Rule{
+				UserData: ip,
+				Table:    fail2drop,
+				Chain:    chain,
+				Exprs:    []expr.Any{
+					// payload ip => reg 1
+					&expr.Payload{
+						DestRegister: 1,
+						Base:         expr.PayloadBaseNetworkHeader,
+						Offset:       12,
+						Len:          4,
+					},
+					// compare reg 1 eq to IPADDR
+					&expr.Cmp{
+						Op:       expr.CmpOpEq,
+						Register: 1,
+						Data:     ip, // []byte
+					},
+					// immediate reg 0 drop
+					&expr.Verdict{
+						Kind: expr.VerdictDrop,
+					},
+				},
+			}
+		} else { // IPv6
+			// nft add rule inet fail2drop FAIL2DROP ip6 saddr IPADDR counter drop
+			rule = &nf.Rule{
+				UserData: ip,
+				Table:    fail2drop,
+				Chain:    chain,
+				Exprs:    []expr.Any{
+					// payload ip6 => reg 1
+					&expr.Payload{
+						DestRegister: 1,
+						Base:         expr.PayloadBaseNetworkHeader,
+						Offset:       8,
+						Len:          16,
+					},
+					// compare reg 1 eq to IPADDR
+					&expr.Cmp{
+						Op:       expr.CmpOpEq,
+						Register: 1,
+						Data:     ip, // []byte
+					},
+					// immediate reg 0 drop
+					&expr.Verdict{
+						Kind: expr.VerdictDrop,
+					},
+				},
+			}
+		}
+		conn.AddRule(rule)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		err = conn.Flush()
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -170,96 +241,33 @@ func initnf() {
 		return
 	}
 
+	conn := &nf.Conn{}
 	// nft delete table inet fail2drop
-	c.DelTable(table)
+	tables, _ := conn.ListTables()
+	for _, t := range tables {
+	  if t.Name == "fail2drop" {
+			conn.FlushTable(t)
+			conn.DelTable(t)
+			break
+		}
+	}
+	conn.Flush()
+	fail2drop := &nf.Table{
+		Family: nf.TableFamilyINet,
+		Name:   "fail2drop",
+	}
 	// nft add table inet fail2drop
-	table = c.AddTable(table)
-	// nft add set inet fail2drop badip '{type ipv4_addr;}'
-	c.AddSet(set4, []nf.SetElement{})
-	// nft add set inet fail2drop badip6 '{type ipv6_addr;}'
-	c.AddSet(set6, []nf.SetElement{})
+	fail2drop = conn.AddTable(fail2drop)
 	// nft add chain inet fail2drop FAIL2DROP
 	chain := &nf.Chain{
 		Name:    "FAIL2DROP",
-		Table:   table,
+		Table:   fail2drop,
 		Type:    nf.ChainTypeFilter,
-		Hooknum: nf.ChainHookInput,
-		Priority: nf.ChainPriorityFilter,
+		Hooknum: nf.ChainHookPrerouting,
+		Priority: nf.ChainPriorityRaw,
 	}
-	chain = c.AddChain(chain)
-	// nft add rule inet fail2drop FAIL2DROP ip saddr @badip counter drop
-	counter4 := &nf.CounterObj{
-		Table: table,
-		Name:  "count",
-	}
-	c.AddObj(counter4)
-	rule := &nf.Rule{
-		Table: table,
-		Chain: chain,
-		Exprs: []expr.Any{
-			// payload load 4b @ network header + 12 (saddr) => reg 1
-			&expr.Payload{
-				DestRegister: 1,
-				Base:         expr.PayloadBaseNetworkHeader,
-				Offset:       12,
-				Len:          4,
-			},
-			// lookup reg 1 in set4
-			&expr.Lookup{
-				SourceRegister: 1,
-				SetName:        set4.Name,
-				SetID:          set4.ID,
-			},
-			// counter "count4"
-			&expr.Objref{
-				Type: 1,
-				Name: counter4.Name,
-			},
-			// immediate reg 0 drop
-			&expr.Verdict{
-				Kind: expr.VerdictDrop,
-			},
-		},
-	}
-	c.AddRule(rule)
-	// nft add rule inet fail2drop FAIL2DROP ip6 saddr @badip8 counter drop
-	counter6 := &nf.CounterObj{
-		Table: table,
-		Name:  "count6",
-	}
-	c.AddObj(counter6)
-	rule = &nf.Rule{
-		Table: table,
-		Chain: chain,
-		Exprs: []expr.Any{
-			// payload load 16b @ network header + 8 => reg 1
-			&expr.Payload{
-				DestRegister: 1,
-				Base:         expr.PayloadBaseNetworkHeader,
-				Offset:       8,
-				Len:          16,
-			},
-			// lookup reg 1 in set6
-			&expr.Lookup{
-				SourceRegister: 1,
-				SetName:        set6.Name,
-				SetID:          set6.ID,
-			},
-			// counter 'count6'
-			&expr.Objref{
-				Type: 1,
-				Name: counter6.Name,
-			},
-			// immediate reg 0 drop
-			&expr.Verdict{
-				Kind: expr.VerdictDrop,
-			},
-		},
-	}
-	c.AddRule(rule)
-	// # nft add element inet fail2drop badip '{1.1.1.1}'
-	// # nft add element inet fail2drop badip6 '{2403:6200:8858:50e:553e:bf75:271:a39b}'
-	c.Flush()
+	chain = conn.AddChain(chain)
+	conn.Flush()
 }
 
 func install() {
