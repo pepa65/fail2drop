@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	version = "0.12.1"
+	version = "0.12.2"
 	name    = "fail2drop"
 	prefix  = "/usr/local/bin/"
 )
@@ -89,7 +89,7 @@ func banip(ipaddr, set string) {
 		var err error
 		conn := &nf.Conn{}
 		fail2drop := &nf.Table{}
-		tables, _ := conn.ListTables()
+		tables, _ := conn.ListTablesOfFamily(nf.TableFamilyINet)
 		for _, t := range tables {
 			if t.Name == "fail2drop" {
 	 			fail2drop = t
@@ -99,6 +99,7 @@ func banip(ipaddr, set string) {
 		if fail2drop.Name != "fail2drop" {
 			log.Fatalln("Error: nftable table inet fail2drop not found")
 		}
+
 		chain := &nf.Chain{}
 		chains, _ := conn.ListChainsOfTableFamily(nf.TableFamilyINet)
 		for _, c := range chains {
@@ -110,14 +111,16 @@ func banip(ipaddr, set string) {
 		if chain.Name != "FAIL2DROP" {
 			log.Fatalln("Error: nftable chain FAIL2DROP on table inet fail2drop not found")
 		}
+
 		ip := []byte(net.ParseIP(ipaddr))
 		rule := &nf.Rule{}
 		rules, _ := conn.GetRules(fail2drop, chain)
-		for _, r := range rules {
+		for _, r := range rules { // Use UserData (IP) as ID for a rule
 			if slices.Equal(r.UserData, []byte(ipaddr)) {
 				return
 			}
 		}
+
 		if strings.Contains(ipaddr, ".") { // IPv4
 			// nft add rule inet fail2drop FAIL2DROP ip saddr IPADDR counter drop
 			rule = &nf.Rule{
@@ -174,9 +177,6 @@ func banip(ipaddr, set string) {
 			}
 		}
 		conn.AddRule(rule)
-		if err != nil {
-			log.Fatalln(err)
-		}
 		err = conn.Flush()
 		if err != nil {
 			log.Fatalln(err)
@@ -245,14 +245,7 @@ func initnf() {
 
 	conn := &nf.Conn{}
 	// nft delete table inet fail2drop
-	tables, _ := conn.ListTables()
-	for _, t := range tables {
-	  if t.Name == "fail2drop" {
-			conn.FlushTable(t)
-			conn.DelTable(t)
-			break
-		}
-	}
+	conn.DelTable(&nf.Table{Name: "fail2drop"})
 	conn.Flush()
 	fail2drop := &nf.Table{
 		Family: nf.TableFamilyINet,

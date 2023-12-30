@@ -7,7 +7,7 @@
 #   will be used if present, otherwise /etc/fail2drop.yml.
 # Required: sudo[or privileged user] grep nftables(nft)
 
-version=0.12.1
+version=0.12.2
 configfile=fail2drop.yml
 nft=/usr/sbin/nft
 
@@ -146,11 +146,13 @@ then # Set up nftable fail2drop
 	$sudo $nft delete table inet fail2drop 2>/dev/null
 	nftconf="
 table inet fail2drop {
-   set badip {
+  set badip {
     type ipv4_addr;
+    counter;
   };
   set badip6 {
     type ipv6_addr;
+    counter;
   };
   chain FAIL2DROP {
     type filter hook input priority filter; policy accept;
