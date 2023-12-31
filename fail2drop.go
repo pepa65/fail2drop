@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"regexp"
@@ -12,13 +13,14 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/coreos/go-iptables/iptables"
+	nf "github.com/google/nftables"
+	"github.com/google/nftables/expr"
 	"github.com/nxadm/tail"
 	"gopkg.in/yaml.v3"
 )
 
 const (
-	version = "0.10.8"
+	version = "0.13.2"
 	name    = "fail2drop"
 	prefix  = "/usr/local/bin/"
 )
@@ -46,7 +48,7 @@ var (
 	varlog   = "/var/log/" + name + ".log"
 	unitname = "/etc/systemd/system/" + name + ".service"
 	records  = map[string]*iprecord{}
-	check    = false
+	noaction = false
 	once     = false
 	wg       sync.WaitGroup
 )
@@ -56,8 +58,8 @@ func usage(msg string) {
 		"Repo:   github.com/pepa65/fail2drop\n" +
 		"Usage:  " + name + " [ OPTION | CONFIGFILE ]\n" +
 		"    OPTION:\n" +
-		"      -c|check:        List to-be-banned IPs without affecting the system.\n" +
 		"      -o|once:         Add to-be-banned IPs in a single run (or from 'cron').\n" +
+		"      -n|noaction:     Do a 'once' single run without affecting the system.\n" +
 		"      -i|install:      Install the binary, a template for the configfile, the\n" +
 		"                       systemd unit file and enable & start the service.\n" +
 		"      -u|uninstall:    Stop & disable the service and remove the unit file.\n" +
@@ -65,7 +67,7 @@ func usage(msg string) {
 		"      -V|version:      Show the version.\n" +
 		"    CONFIGFILE:        Used if given, otherwise '" + name + ".yml' in the current\n" +
 		"                       directory or finally '/etc/" + name + ".yml' will get used.\n" +
-		"  Privileges are required to run, except for 'check', 'help' and 'version'."
+		"  Privileges are required to run, except for 'noaction', 'help' and 'version'."
 	fmt.Println(help)
 	if msg != "" {
 		fmt.Println("\n", msg)
@@ -76,24 +78,104 @@ func usage(msg string) {
 }
 
 func banip(ipaddr, set string) {
-	var ipt *iptables.IPTables
-	var err error
-	if strings.Contains(ipaddr, ".") {
-		ipt, err = iptables.New(iptables.IPFamily(iptables.ProtocolIPv4), iptables.Timeout(5))
-	} else {
-		ipt, err = iptables.New(iptables.IPFamily(iptables.ProtocolIPv6), iptables.Timeout(5))
-	}
-	if err != nil {
-		log.Fatalln(err)
-	}
-
 	for _, ip := range whitelist {
 		if ip == ipaddr {
 			return
 		}
 	}
-	if !check {
-		err = ipt.AppendUnique("fail2drop", "FAIL2DROP", "--src", ipaddr, "-j", "DROP")
+
+	if !noaction {
+		var err error
+		conn := &nf.Conn{}
+		fail2drop := &nf.Table{}
+		tables, _ := conn.ListTablesOfFamily(nf.TableFamilyINet)
+		for _, t := range tables {
+			if t.Name == "fail2drop" {
+	 			fail2drop = t
+				break
+			}
+		}
+		if fail2drop.Name != "fail2drop" {
+			log.Fatalln("Error: nftable table inet fail2drop not found")
+		}
+
+		chain := &nf.Chain{}
+		chains, _ := conn.ListChainsOfTableFamily(nf.TableFamilyINet)
+		for _, c := range chains {
+			if c.Name == "FAIL2DROP" {
+				chain = c
+				break
+			}
+		}
+		if chain.Name != "FAIL2DROP" {
+			log.Fatalln("Error: nftable chain FAIL2DROP on table inet fail2drop not found")
+		}
+
+		rule := &nf.Rule{}
+		rules, _ := conn.GetRules(fail2drop, chain)
+		for _, r := range rules { // Use UserData (IP) as ID for a rule
+			if string(r.UserData) == ipaddr {
+				return
+			}
+		}
+
+		if strings.Contains(ipaddr, ".") { // IPv4
+			// nft add rule inet fail2drop FAIL2DROP ip saddr IPADDR counter drop
+			rule = &nf.Rule{
+				UserData: []byte(ipaddr),
+				Table:    fail2drop,
+				Chain:    chain,
+				Exprs:    []expr.Any{
+					// payload ip => reg 1
+					&expr.Payload{
+						DestRegister: 1,
+						Base:         expr.PayloadBaseNetworkHeader,
+						Offset:       12,
+						Len:          4,
+					},
+					// compare reg 1 eq to IPADDR
+					&expr.Cmp{
+						Op:       expr.CmpOpEq,
+						Register: 1,
+						Data:     []byte(net.ParseIP(ipaddr).To4()),
+					},
+					&expr.Counter{Bytes: 0, Packets: 0},
+					// immediate reg 0 drop
+					&expr.Verdict{
+						Kind: expr.VerdictDrop,
+					},
+				},
+			}
+		} else { // IPv6
+			// nft add rule inet fail2drop FAIL2DROP ip6 saddr IPADDR counter drop
+			rule = &nf.Rule{
+				UserData: []byte(ipaddr),
+				Table:    fail2drop,
+				Chain:    chain,
+				Exprs:    []expr.Any{
+					// payload ip6 => reg 1
+					&expr.Payload{
+						DestRegister: 1,
+						Base:         expr.PayloadBaseNetworkHeader,
+						Offset:       8,
+						Len:          16,
+					},
+					// compare reg 1 eq to IPADDR
+					&expr.Cmp{
+						Op:       expr.CmpOpEq,
+						Register: 1,
+						Data:     []byte(net.ParseIP(ipaddr)),
+					},
+					&expr.Counter{Bytes: 0, Packets: 0},
+					// immediate reg 0 drop
+					&expr.Verdict{
+						Kind: expr.VerdictDrop,
+					},
+				},
+			}
+		}
+		conn.AddRule(rule)
+		err = conn.Flush()
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -136,52 +218,46 @@ func process(logsearch logsearch, line string) {
 }
 
 func follow(logsearch logsearch) {
-	if check || once {
-		t, err := tail.TailFile(logsearch.logfile, tail.Config{MustExist: true, CompleteLines: true})
-		if err == nil {
-			for line := range t.Lines {
-				process(logsearch, line.Text)
-			}
-		}
+	defer wg.Done()
+	var t *tail.Tail
+	var err error
+	if once {
+		t, err = tail.TailFile(logsearch.logfile, tail.Config{MustExist: true, CompleteLines: true})
 	} else {
-		defer wg.Done()
-		t, err := tail.TailFile(logsearch.logfile, tail.Config{MustExist: true, CompleteLines: true, Follow: true, ReOpen: true})
-		if err == nil {
-			for line := range t.Lines {
-				process(logsearch, line.Text)
-			}
+		t, err = tail.TailFile(logsearch.logfile, tail.Config{MustExist: true, CompleteLines: true, Follow: true, ReOpen: true})
+	}
+	if err == nil {
+		for line := range t.Lines {
+			process(logsearch, line.Text)
 		}
 	}
 }
 
 func initnf() {
-	if check {
+	if noaction {
 		return
 	}
 
-	for _, proto := range []iptables.Protocol{iptables.ProtocolIPv4, iptables.ProtocolIPv6} {
-		ipt, err := iptables.New(iptables.IPFamily(proto), iptables.Timeout(5))
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		exist, err := ipt.ChainExists("fail2drop", "FAIL2DROP")
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		if !exist {
-			err = ipt.NewChain("fail2drop", "FAIL2DROP")
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			err = ipt.Insert("fail2drop", "PREROUTING", 1, "-j", "FAIL2DROP")
-			if err != nil {
-				log.Fatalln(err)
-			}
-		}
+	conn := &nf.Conn{}
+	// nft delete table inet fail2drop
+	conn.DelTable(&nf.Table{Name: "fail2drop"})
+	conn.Flush()
+	fail2drop := &nf.Table{
+		Family: nf.TableFamilyINet,
+		Name:   "fail2drop",
 	}
+	// nft add table inet fail2drop
+	fail2drop = conn.AddTable(fail2drop)
+	// nft add chain inet fail2drop FAIL2DROP
+	chain := &nf.Chain{
+		Name:    "FAIL2DROP",
+		Table:   fail2drop,
+		Type:    nf.ChainTypeFilter,
+		Hooknum: nf.ChainHookPrerouting,
+		Priority: nf.ChainPriorityRaw,
+	}
+	chain = conn.AddChain(chain)
+	conn.Flush()
 }
 
 func install() {
@@ -265,8 +341,8 @@ func main() {
 
 		case "install", "-i", "--install":
 			doinstall = true
-		case "check", "-c", "--check":
-			check = true
+		case "noaction", "-n", "--noaction", "check", "-c", "--check":
+			noaction, once = true, true
 		case "once", "-o", "--once":
 			once = true
 		default:
@@ -314,6 +390,7 @@ func main() {
 	}
 
 	initnf()
+	var logsearches []logsearch
 	for key, value := range cfgslice {
 		switch key {
 		case "varlog":
@@ -346,16 +423,13 @@ func main() {
 				}
 			}
 			if count == 4 { // All 4 properties are needed
-				if check || once {
-					follow(logsearch)
-				} else {
-					wg.Add(1)
-					go follow(logsearch)
-				}
+				logsearches = append(logsearches, logsearch)
 			}
 		}
 	}
-	if !check && !once {
-		wg.Wait()
+	for _, logsearch := range logsearches {
+		wg.Add(1)
+		go follow(logsearch)
 	}
+	wg.Wait()
 }

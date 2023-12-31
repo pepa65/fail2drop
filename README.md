@@ -1,32 +1,25 @@
-# fail2drop v0.10.8
-**Drop repeatedly offending IP addresses with nftables**
+# fail2drop v0.13.2
+**Drop repeat-offending IP addresses in-kernel (netfilter)**
 
 * Repo: github.com/pepa65/fail2drop
 * License: GPLv3+
 * After: github.com/apache2046/fail2drop
-* Required: `nftables` (`nft`) and `sudo` (or privileged user)
-* Linux small single binary distribution, Golang source, EXCEPT:
-  Requires `nftables` to be installed and used when `iptables` gets invoked
-  (on Debian-based systems: `/etc/alternatives/iptables` softlinks to `/usr/sbin/iptables-nft`).
-  Otherwise, the actual kernel rules do not get added (see output of `nft list ruleset`).
-* For really small, just get `fail2drop.sh` in bash, it does 'check' and 'once' but
-  does not keep running concurrently to process the logfiles (also requires `grep`).
-	- `fail2drop.sh` is equivalent to `fail2drop --once`.
-	- `fail2drop.sh --noaction` is equivalent to `fail2drop --check`.
-  The binary `nft` is supposed to be installed in `/usr/sbin/nft`.
+* Linux single stand-alone binary distribution with Golang source. This version uses a rule for each banned IP.
+* Bash version that requires package `nftables`. The bash version uses sets with a single rule.
 * IPs dropped in-kernel with Netfilter (nftables) rules.
+* Package `nftables` (binary `nft`) does not need to be installed (but do install it to check state/results!).
 * Can install systemd unit file for automated start, runs fine without systemd.
 * Installs a basic configfile for sshd when not present.
 * Logs to single file which can be specified in configfile.
 * IPs can be whitelisted in configfile.
 * Multiple logfiles can be monitored with multiple patterns and bancounts from configfile.
-* Usage: `fail2drop` [ CFGFILE | `-c`|`check` | `-o`|`--once` | `-i`|`install` | `-u`|`uninstall` | `-h`|`help` | `-V`|`version` ]
+* Usage: `fail2drop` [ CFGFILE | `-o`|`--once` | `-n`|`noaction` | `-i`|`install` | `-u`|`uninstall` | `-h`|`help` | `-V`|`version` ]
   - Can use an alternate configfile from the commandline, otherwise 
     `fail2drop.yml` in the current directory will be used, and finally `/etc/fail2drop.yml`.
-  - Can check and list the to-be-banned IP addresses without affecting the system.
   - Can run once (or being called from `cron` occasionally) to add drop rules to nftables,
     without needing to constantly monitor the log files, for very lightweight operation.
 		In this case the output is to stdout, so wants to be redirected in cron jobs
+  - Can run once and list the to-be-banned IP addresses without affecting the system.
   - Can install the binary, a template for the configfile, the systemd unit file and enable & start the service.
   - Can stop & disable the service and remove the unit file.
   - Can show a help text.
@@ -100,15 +93,15 @@ Or add: `/usr/local/bin/fail2drop.sh 2>>/var/log/fail2drop.log`
 
 ## Usage
 Basically, run continuously through the systemd service file,
-or run occasionally with the `once` option,
-or just check what would get banned by running with the `check` option.
+or run occasionally with the `once` option, or run 'once' without affecting
+the system to see what would get banned by running with the `noaction` option.
 ```
-fail2drop v0.10.8 - Drop repeat-offending IP addresses in-kernel (netfilter)
+fail2drop v0.13.2 - Drop repeat-offending IP addresses in-kernel (netfilter)
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
-      -c|check:        List to-be-banned IPs without affecting the system.
       -o|once:         Add to-be-banned IPs in a single run (or from 'cron').
+      -n|noaction:     Do a 'once' single run without affecting the system.
       -i|install:      Install the binary, a template for the configfile, the
                        systemd unit file and enable & start the service.
       -u|uninstall:    Stop & disable the service and remove the unit file.
@@ -116,7 +109,7 @@ Usage:  fail2drop [ OPTION | CONFIGFILE ]
       -V|version:      Show the version.
     CONFIGFILE:        Used if given, otherwise 'fail2drop.yml' in the current
                        directory or finally '/etc/fail2drop.yml' will get used.
-  Privileges are required to run except for 'check', 'help' and 'version'.
+  Privileges are required to run except for 'noaction', 'help' and 'version'.
 ```
 
 ## Configure
@@ -127,7 +120,7 @@ Usage:  fail2drop [ OPTION | CONFIGFILE ]
 * Multiple `searchlog` conditions can be named and specified, with:
   - `logfile:` - The path of the log file to be searched
   - `tag:` - The initial search tag to filter lines in the log file
-  - `ipregex:` - A regular expression that hopefully contains an offending IP address.
+  - `ipregex:` - A regular expression that should contains an offending IP address.
   - `bancount:` - The maximum number of offences allowed.
 * If `/etc/fail2drop.yml` does not exist, `fail2drop install` will put the repo content
   of `fail2drop.yml` there. This can be modified and extended.
