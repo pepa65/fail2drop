@@ -7,7 +7,7 @@
 #   will be used if present, otherwise /etc/fail2drop.yml.
 # Required: sudo[or privileged user] grep nftables(nft)
 
-version=0.13.2
+version=0.13.3
 configfile=fail2drop.yml
 nft=/usr/sbin/nft
 
