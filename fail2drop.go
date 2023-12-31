@@ -16,12 +16,11 @@ import (
 	nf "github.com/google/nftables"
 	"github.com/google/nftables/expr"
 	"github.com/nxadm/tail"
-	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 )
 
 const (
-	version = "0.12.2"
+	version = "0.13.0"
 	name    = "fail2drop"
 	prefix  = "/usr/local/bin/"
 )
@@ -49,7 +48,7 @@ var (
 	varlog   = "/var/log/" + name + ".log"
 	unitname = "/etc/systemd/system/" + name + ".service"
 	records  = map[string]*iprecord{}
-	check    = false
+	noaction = false
 	once     = false
 	wg       sync.WaitGroup
 )
@@ -59,8 +58,8 @@ func usage(msg string) {
 		"Repo:   github.com/pepa65/fail2drop\n" +
 		"Usage:  " + name + " [ OPTION | CONFIGFILE ]\n" +
 		"    OPTION:\n" +
-		"      -c|check:        List to-be-banned IPs without affecting the system.\n" +
 		"      -o|once:         Add to-be-banned IPs in a single run (or from 'cron').\n" +
+		"      -n|noaction:     Do a 'once' single run without affecting the system.\n" +
 		"      -i|install:      Install the binary, a template for the configfile, the\n" +
 		"                       systemd unit file and enable & start the service.\n" +
 		"      -u|uninstall:    Stop & disable the service and remove the unit file.\n" +
@@ -68,7 +67,7 @@ func usage(msg string) {
 		"      -V|version:      Show the version.\n" +
 		"    CONFIGFILE:        Used if given, otherwise '" + name + ".yml' in the current\n" +
 		"                       directory or finally '/etc/" + name + ".yml' will get used.\n" +
-		"  Privileges are required to run, except for 'check', 'help' and 'version'."
+		"  Privileges are required to run, except for 'noaction', 'help' and 'version'."
 	fmt.Println(help)
 	if msg != "" {
 		fmt.Println("\n", msg)
@@ -85,7 +84,7 @@ func banip(ipaddr, set string) {
 		}
 	}
 
-	if !check {
+	if !noaction {
 		var err error
 		conn := &nf.Conn{}
 		fail2drop := &nf.Table{}
@@ -112,11 +111,10 @@ func banip(ipaddr, set string) {
 			log.Fatalln("Error: nftable chain FAIL2DROP on table inet fail2drop not found")
 		}
 
-		ip := []byte(net.ParseIP(ipaddr))
 		rule := &nf.Rule{}
 		rules, _ := conn.GetRules(fail2drop, chain)
 		for _, r := range rules { // Use UserData (IP) as ID for a rule
-			if slices.Equal(r.UserData, []byte(ipaddr)) {
+			if string(r.UserData) == ipaddr {
 				return
 			}
 		}
@@ -139,7 +137,7 @@ func banip(ipaddr, set string) {
 					&expr.Cmp{
 						Op:       expr.CmpOpEq,
 						Register: 1,
-						Data:     ip[12:], // Last 4 bytes
+						Data:     []byte(net.ParseIP(ipaddr).To4()),
 					},
 					&expr.Counter{Bytes: 0, Packets: 0},
 					// immediate reg 0 drop
@@ -166,7 +164,7 @@ func banip(ipaddr, set string) {
 					&expr.Cmp{
 						Op:       expr.CmpOpEq,
 						Register: 1,
-						Data:     ip,
+						Data:     []byte(net.ParseIP(ipaddr)),
 					},
 					&expr.Counter{Bytes: 0, Packets: 0},
 					// immediate reg 0 drop
@@ -220,26 +218,23 @@ func process(logsearch logsearch, line string) {
 }
 
 func follow(logsearch logsearch) {
-	if check || once {
-		t, err := tail.TailFile(logsearch.logfile, tail.Config{MustExist: true, CompleteLines: true})
-		if err == nil {
-			for line := range t.Lines {
-				process(logsearch, line.Text)
-			}
-		}
+	defer wg.Done()
+	var t *tail.Tail
+	var err error
+	if once {
+		t, err = tail.TailFile(logsearch.logfile, tail.Config{MustExist: true, CompleteLines: true})
 	} else {
-		defer wg.Done()
-		t, err := tail.TailFile(logsearch.logfile, tail.Config{MustExist: true, CompleteLines: true, Follow: true, ReOpen: true})
-		if err == nil {
-			for line := range t.Lines {
-				process(logsearch, line.Text)
-			}
+		t, err = tail.TailFile(logsearch.logfile, tail.Config{MustExist: true, CompleteLines: true, Follow: true, ReOpen: true})
+	}
+	if err == nil {
+		for line := range t.Lines {
+			process(logsearch, line.Text)
 		}
 	}
 }
 
 func initnf() {
-	if check {
+	if noaction {
 		return
 	}
 
@@ -346,8 +341,8 @@ func main() {
 
 		case "install", "-i", "--install":
 			doinstall = true
-		case "check", "-c", "--check":
-			check = true
+		case "noaction", "-n", "--noaction", "check", "-c", "--check":
+			noaction, once = true, true
 		case "once", "-o", "--once":
 			once = true
 		default:
@@ -395,6 +390,8 @@ func main() {
 	}
 
 	initnf()
+	i := 0
+	var logsearches []logsearch
 	for key, value := range cfgslice {
 		switch key {
 		case "varlog":
@@ -406,37 +403,33 @@ func main() {
 				}
 			}
 		default:
-			var logsearch logsearch
-			logsearch.set = key
+			logsearches[i].set = key
 			count := 0
 			values := value.(map[string]interface{})
 			for k, v := range values {
 				switch k {
 				case "logfile":
-					logsearch.logfile = v.(string)
+					logsearches[i].logfile = v.(string)
 					count += 1
 				case "tag":
-					logsearch.tag = v.(string)
+					logsearches[i].tag = v.(string)
 					count += 1
 				case "ipregex":
-					logsearch.ipregex = v.(string)
+					logsearches[i].ipregex = v.(string)
 					count += 1
 				case "bancount":
-					logsearch.bancount = v.(int)
+					logsearches[i].bancount = v.(int)
 					count += 1
 				}
 			}
 			if count == 4 { // All 4 properties are needed
-				if check || once {
-					follow(logsearch)
-				} else {
-					wg.Add(1)
-					go follow(logsearch)
-				}
+				i += 1
 			}
 		}
 	}
-	if !check && !once {
-		wg.Wait()
+	for _, logsearch := range logsearches {
+		wg.Add(1)
+		go follow(logsearch)
 	}
+	wg.Wait()
 }

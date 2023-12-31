@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-# fail2drop.sh - The 'check' and 'once' functionality of fail2drop in bash
+# fail2drop.sh - The 'once' and 'noaction' functionality of fail2drop in bash
 # Usage: fail2drop.sh [-n|--noaction | CONFIGFILE]
 #     -n/--noaction: No system changes, just show what would be logged (check)
 #   If CONFIGFILE is not given, then fail2drop.yml in the current directory
 #   will be used if present, otherwise /etc/fail2drop.yml.
 # Required: sudo[or privileged user] grep nftables(nft)
 
-version=0.12.2
+version=0.13.0
 configfile=fail2drop.yml
 nft=/usr/sbin/nft
 
