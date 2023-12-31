@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	version = "0.13.5"
+	version = "0.14.0"
 	name    = "fail2drop"
 	prefix  = "/usr/local/bin/"
 )
@@ -33,24 +33,18 @@ type logsearch struct {
 	bancount int
 }
 
-type iprecord struct {
-	count int
-	added bool
-}
-
 var (
-	whitelist []string
 	//go:embed unit.tmpl
 	unittmpl string
 	//go:embed fail2drop.yml
-	cfgtmpl  string
-	config   = "/etc/" + name + ".yml"
-	varlog   = "/var/log/" + name + ".log"
-	unitname = "/etc/systemd/system/" + name + ".service"
-	records  = map[string]*iprecord{}
-	noaction = false
-	once     = false
-	wg       sync.WaitGroup
+	cfgtmpl   string
+	whitelist []string
+	config    = "/etc/" + name + ".yml"
+	varlog    = "/var/log/" + name + ".log"
+	unitname  = "/etc/systemd/system/" + name + ".service"
+	noaction  = false
+	once      = false
+	wg        sync.WaitGroup
 )
 
 func usage(msg string) {
@@ -78,12 +72,6 @@ func usage(msg string) {
 }
 
 func banip(ipaddr, set string) {
-	for _, ip := range whitelist {
-		if ip == ipaddr {
-			return
-		}
-	}
-
 	if !noaction {
 		var err error
 		conn := &nf.Conn{}
@@ -184,7 +172,7 @@ func banip(ipaddr, set string) {
 	log.Printf("[%s v%s] '%s' ban %s\n", name, version, set, ipaddr)
 }
 
-func process(logsearch logsearch, line string) {
+func process(logsearch logsearch, line string, ipcount map[string]int) {
 	if !strings.Contains(line, logsearch.tag) {
 		return
 	}
@@ -195,9 +183,10 @@ func process(logsearch logsearch, line string) {
 		return
 	}
 
+	// Search for IPv4
 	regex = regexp.MustCompile(`[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*\.[1-9][0-9]*`)
 	ipaddrs := regex.FindStringSubmatch(results[0])
-	if len(ipaddrs) == 0 {
+	if len(ipaddrs) == 0 { // Search for IPv6
 		regex = regexp.MustCompile(`[0-9a-fA-F]{1,4}(:[0-9a-fA-F]{1,4}){7}`)
 		if len(ipaddrs) == 0 {
 			return
@@ -205,20 +194,29 @@ func process(logsearch logsearch, line string) {
 	}
 
 	ipaddr := ipaddrs[0]
-	record, ok := records[ipaddr]
-	if !ok {
-		record = &iprecord{}
-		records[ipaddr] = record
+	for _, ip := range whitelist {
+		if ip == ipaddr {
+			return
+		}
 	}
-	record.count += 1
-	if record.count > logsearch.bancount && !record.added {
+
+	n := ipcount[ipaddr]
+	if n == -1 { // Banned already
+		return
+	}
+
+	n += 1
+	if n > logsearch.bancount {
+		ipcount[ipaddr] = -1
 		banip(ipaddr, logsearch.set)
-		record.added = true
+	} else {
+		ipcount[ipaddr] = n
 	}
 }
 
 func follow(logsearch logsearch) {
 	defer wg.Done()
+	ipcount := map[string]int{}
 	var t *tail.Tail
 	var err error
 	if once {
@@ -228,7 +226,7 @@ func follow(logsearch logsearch) {
 	}
 	if err == nil {
 		for line := range t.Lines {
-			process(logsearch, line.Text)
+			process(logsearch, line.Text, ipcount)
 		}
 	}
 }
