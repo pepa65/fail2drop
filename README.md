@@ -1,10 +1,11 @@
-# fail2drop v0.13.1
+# fail2drop v0.13.2
 **Drop repeat-offending IP addresses in-kernel (netfilter)**
 
 * Repo: github.com/pepa65/fail2drop
 * License: GPLv3+
 * After: github.com/apache2046/fail2drop
-* Linux single stand-alone binary distribution with Golang source.
+* Linux single stand-alone binary distribution with Golang source. This version uses a rule for each banned IP.
+* Bash version that requires package `nftables`. The bash version uses sets with a single rule.
 * IPs dropped in-kernel with Netfilter (nftables) rules.
 * Package `nftables` (binary `nft`) does not need to be installed (but do install it to check state/results!).
 * Can install systemd unit file for automated start, runs fine without systemd.
@@ -95,7 +96,7 @@ Basically, run continuously through the systemd service file,
 or run occasionally with the `once` option, or run 'once' without affecting
 the system to see what would get banned by running with the `noaction` option.
 ```
-fail2drop v0.13.1 - Drop repeat-offending IP addresses in-kernel (netfilter)
+fail2drop v0.13.2 - Drop repeat-offending IP addresses in-kernel (netfilter)
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
@@ -119,7 +120,7 @@ Usage:  fail2drop [ OPTION | CONFIGFILE ]
 * Multiple `searchlog` conditions can be named and specified, with:
   - `logfile:` - The path of the log file to be searched
   - `tag:` - The initial search tag to filter lines in the log file
-  - `ipregex:` - A regular expression that hopefully contains an offending IP address.
+  - `ipregex:` - A regular expression that should contains an offending IP address.
   - `bancount:` - The maximum number of offences allowed.
 * If `/etc/fail2drop.yml` does not exist, `fail2drop install` will put the repo content
   of `fail2drop.yml` there. This can be modified and extended.

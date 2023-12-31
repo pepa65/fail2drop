@@ -7,7 +7,7 @@
 #   will be used if present, otherwise /etc/fail2drop.yml.
 # Required: sudo[or privileged user] grep nftables(nft)
 
-version=0.13.1
+version=0.13.2
 configfile=fail2drop.yml
 nft=/usr/sbin/nft
 
@@ -155,7 +155,7 @@ table inet fail2drop {
     counter;
   };
   chain FAIL2DROP {
-    type filter hook input priority filter; policy accept;
+    type filter hook prerouting priority raw; policy accept;
     ip saddr @badip counter packets 0 bytes 0 drop;
     ip6 saddr @badip6 counter packets 0 bytes 0 drop;
   }
@@ -172,7 +172,7 @@ do # Process each set
 	ip6s=$(grep "${tags[$i]}" "${logfiles[$i]}" |
 		grep -o "${ipregexs[$i]}" |
 		grep -o '[0-9a-fA-F]{1,4}(:[0-9a-fA-F]{1,4}){7}')
-	stamp="$(date +%Y-%m-%d_%H:%M:%S) [fail2drop.sh v$version]"
+	stamp="$(date +%Y/%m/%d %H:%M:%S) [fail2drop.sh v$version]"
 	for ip in $ips
 	do # Process ipv4
 		for w in ${okips[@]}
