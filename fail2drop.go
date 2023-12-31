@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	version = "0.13.0"
+	version = "0.13.1"
 	name    = "fail2drop"
 	prefix  = "/usr/local/bin/"
 )
@@ -390,7 +390,6 @@ func main() {
 	}
 
 	initnf()
-	i := 0
 	var logsearches []logsearch
 	for key, value := range cfgslice {
 		switch key {
@@ -403,27 +402,28 @@ func main() {
 				}
 			}
 		default:
-			logsearches[i].set = key
+			var logsearch logsearch
+			logsearch.set = key
 			count := 0
 			values := value.(map[string]interface{})
 			for k, v := range values {
 				switch k {
 				case "logfile":
-					logsearches[i].logfile = v.(string)
+					logsearch.logfile = v.(string)
 					count += 1
 				case "tag":
-					logsearches[i].tag = v.(string)
+					logsearch.tag = v.(string)
 					count += 1
 				case "ipregex":
-					logsearches[i].ipregex = v.(string)
+					logsearch.ipregex = v.(string)
 					count += 1
 				case "bancount":
-					logsearches[i].bancount = v.(int)
+					logsearch.bancount = v.(int)
 					count += 1
 				}
 			}
 			if count == 4 { // All 4 properties are needed
-				i += 1
+				logsearches = append(logsearches, logsearch)
 			}
 		}
 	}
