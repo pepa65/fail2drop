@@ -1,4 +1,4 @@
-# fail2drop v0.13.3
+# fail2drop v0.13.4
 **Drop repeat-offending IP addresses in-kernel (netfilter)**
 
 * Repo: github.com/pepa65/fail2drop
@@ -96,7 +96,7 @@ Basically, run continuously through the systemd service file,
 or run occasionally with the `once` option, or run 'once' without affecting
 the system to see what would get banned by running with the `noaction` option.
 ```
-fail2drop v0.13.3 - Drop repeat-offending IP addresses in-kernel (netfilter)
+fail2drop v0.13.4 - Drop repeat-offending IP addresses in-kernel (netfilter)
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
@@ -144,6 +144,7 @@ nfdel(){
   nft delete rule mangle FAIL2DROP handle $h &&
     echo "IP address '$1' with handle '$h' deleted"
 }
+```
 
 ## Update
 Basically, run the new binary with the `install` option.
