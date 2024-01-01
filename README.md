@@ -1,4 +1,4 @@
-# fail2drop v0.14.0
+# fail2drop v0.14.1
 **Drop repeat-offending IP addresses in-kernel (netfilter)**
 
 * Repo: github.com/pepa65/fail2drop
