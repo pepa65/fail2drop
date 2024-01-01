@@ -107,34 +107,7 @@ func banip(ipaddr, set string) {
 			}
 		}
 
-		if strings.Contains(ipaddr, ".") { // IPv4
-			// nft add rule inet fail2drop FAIL2DROP ip saddr IPADDR counter drop
-			rule = &nf.Rule{
-				UserData: []byte(ipaddr),
-				Table:    fail2drop,
-				Chain:    chain,
-				Exprs:    []expr.Any{
-					// payload ip => reg 1
-					&expr.Payload{
-						DestRegister: 1,
-						Base:         expr.PayloadBaseNetworkHeader,
-						Offset:       12,
-						Len:          4,
-					},
-					// compare reg 1 eq to IPADDR
-					&expr.Cmp{
-						Op:       expr.CmpOpEq,
-						Register: 1,
-						Data:     []byte(net.ParseIP(ipaddr).To4()),
-					},
-					&expr.Counter{Bytes: 0, Packets: 0},
-					// immediate reg 0 drop
-					&expr.Verdict{
-						Kind: expr.VerdictDrop,
-					},
-				},
-			}
-		} else { // IPv6
+		if strings.Contains(ipaddr, ":") { // IPv6
 			// nft add rule inet fail2drop FAIL2DROP ip6 saddr IPADDR counter drop
 			rule = &nf.Rule{
 				UserData: []byte(ipaddr),
@@ -153,6 +126,33 @@ func banip(ipaddr, set string) {
 						Op:       expr.CmpOpEq,
 						Register: 1,
 						Data:     []byte(net.ParseIP(ipaddr)),
+					},
+					&expr.Counter{Bytes: 0, Packets: 0},
+					// immediate reg 0 drop
+					&expr.Verdict{
+						Kind: expr.VerdictDrop,
+					},
+				},
+			}
+		} else { // IPv4
+			// nft add rule inet fail2drop FAIL2DROP ip saddr IPADDR counter drop
+			rule = &nf.Rule{
+				UserData: []byte(ipaddr),
+				Table:    fail2drop,
+				Chain:    chain,
+				Exprs:    []expr.Any{
+					// payload ip => reg 1
+					&expr.Payload{
+						DestRegister: 1,
+						Base:         expr.PayloadBaseNetworkHeader,
+						Offset:       12,
+						Len:          4,
+					},
+					// compare reg 1 eq to IPADDR
+					&expr.Cmp{
+						Op:       expr.CmpOpEq,
+						Register: 1,
+						Data:     []byte(net.ParseIP(ipaddr).To4()),
 					},
 					&expr.Counter{Bytes: 0, Packets: 0},
 					// immediate reg 0 drop

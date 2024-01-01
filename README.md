@@ -4,13 +4,13 @@
 * Repo: github.com/pepa65/fail2drop
 * License: GPLv3+
 * After: github.com/apache2046/fail2drop
+* Packets from IPs dropped in-kernel with Netfilter (nftables) rules.
 * Linux small single stand-alone binary distribution with Golang source. This version uses a rule for each banned IP.
-* Bash version that requires package `nftables`. The bash version uses sets of IP addresses with a single rule.
-* IPs dropped in-kernel with Netfilter (nftables) rules.
-* Package `nftables` (binary `nft`) does not need to be installed (but do install it to check state/results!).
 * Can install systemd unit file for automated start, runs fine without systemd.
 * Installs a basic configfile for sshd when not present.
-* Logs to single file which can be specified in configfile.
+* Package `nftables` (binary `nft`) does not need to be installed (but do install it to check counts/state/results!).
+* Bash version that requires package `nftables`. The bash version uses sets of IP addresses with a single rule.
+* Logs to single file which can be specified in configfile, `/etc/fail2drop.yml` by default.
 * IPs can be whitelisted in configfile.
 * Multiple logfiles can be monitored with multiple patterns and bancounts from configfile.
 * Usage: `fail2drop` [ CFGFILE | `-o`|`--once` | `-n`|`noaction` | `-i`|`install` | `-u`|`uninstall` | `-h`|`help` | `-V`|`version` ]
@@ -24,43 +24,43 @@
   - Can stop & disable the service and remove the unit file.
   - Can show a help text.
   - Can show the version.
-* Checking and showing the help text and version does not require privileges, the rest does.
-* Default configfile: `/etc/fail2drop.yml`
+* Running 'noaction', showing the help text or version does not require privileges, the rest does.
 
 ## Install
-* Required: `sudo` `systemd`
+* Required: `sudo` (or any way to operate with root privileges)
 
 ## Installing by downloading the self-contained binary
 * Required: `wget` (or any other way to download the binary)
 * Get the appropriate link to the latest released binary at:
   https://github.com/pepa65/fail2drop/releases
+* Or use `4e4.in/fail2drop`
 
 ```
-wget -qO fail2drop "LINK"
+wget -q 4e4.in/fail2drop
 chmod +x fail2drop
 sudo ./fail2drop install
 # Edit /etc/fail2drop.yml if required, and if changed, do:
 sudo systemctl restart fail2drop
 ```
 
-Or for `fail2drop.sh`:
+Or for `fail2drop.sh`, use `gitlab.com/pepa65/fail2drop/raw/main/fail2drop.sh`, or:
 ```
-wget -q https://gitlab.com/pepa65/fail2drop/raw/main/fail2drop.sh
+wget -q 4e4.in/fail2drop.sh
 chmod +x fail2drop.sh
 sudo cp fail2drop.sh /usr/local/bin/
 sudo chown root:root /usr/local/bin/fail2drop.sh
-wget -q https://gitlab.com/pepa65/fail2drop/raw/main/fail2drop.yml
-sudo cp fail2drop.sh /etc/
+wget -q 4e4.in/fail2drop.yml
+sudo cp fail2drop.yml /etc/
 sudo chown root:root /etc/fail2drop.yml
 ```
 
 ### Installing with go
-* Required: `go`
+* Required: `go` properly installed
 
 ```
 sudo go install github.com/pepa65/fail2drop@latest
 sudo fail2drop install
-# Edit /etc/fail2drop.yml if required, andif changed, do:
+# Edit /etc/fail2drop.yml if required, and if changed, do:
 sudo systemctl restart fail2drop
 ```
 
@@ -80,15 +80,16 @@ sudo ./fail2drop install
 ### Installing for use with cron
 Install, then uninstall (the binary and configfile will stay).
 Then add this command to a crontab: `/usr/local/bin/fail2drop --once 2>>/var/log/fail2drop.log`
-(The output of `once` is on stderr.)
+(The output of `once` is on `stderr`.)
 
 Or add: `/usr/local/bin/fail2drop.sh 2>>/var/log/fail2drop.log`
-(The output is also on stderr.)
+(The output of the bash version is also on `stderr`.)
 
 ## Uninstall
 `fail2drop uninstall`
 
 * The binary can be removed with: `sudo rm /usr/local/bin/fail2drop`
+* The bash script can be removed with: `sudo rm /usr/local/bin/fail2drop.sh`
 * The configfile can be removed with: `sudo rm /etc/fail2drop.yml`
 
 ## Usage
@@ -96,7 +97,7 @@ Basically, run continuously through the systemd service file,
 or run occasionally with the `once` option, or run 'once' without affecting
 the system to see what would get banned by running with the `noaction` option.
 ```
-fail2drop v0.14.0 - Drop repeat-offending IP addresses in-kernel (netfilter)
+fail2drop v0.14.1 - Drop repeat-offending IP addresses in-kernel (netfilter)
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
@@ -117,7 +118,7 @@ Usage:  fail2drop [ OPTION | CONFIGFILE ]
 * The logfile recording the bans is `/var/log/fail2drop.log` by default,
   but can be specified in the configfile with `varlog:`.
 * IP addresses can be whitelisted under `whitelist:` (prepended by `- `).
-* Multiple `searchlog` conditions can be named and specified, with:
+* Multiple `searchlog` conditions can be named and specified, after:
   - `logfile:` - The path of the log file to be searched
   - `tag:` - The initial search tag to filter lines in the log file
   - `ipregex:` - A regular expression that should contains an offending IP address.
@@ -129,20 +130,32 @@ Usage:  fail2drop [ OPTION | CONFIGFILE ]
 * Check current table with: `sudo nft list ruleset` (`nft` from package `nftables`).
 * Check the log of banned IPs: `less /var/log/fail2drop.log`
 * Unban all banned entries: `sudo nft delete inet table fail2drop`
-* To remove the ban on a specific IP address, use this function:
+* To remove the ban on a specific IP address for the golang version, use this function:
 ```
-nfdel(){
-  [[ -z $1 ]] &&
-    echo "Error: give IP address as argument" &&
-    return ||
-    echo "Info: trying to remove IP address '$1'"
-  local h=$( nft -a list table ip mangle |grep $1)
-  h=${h##* }
-  [[ -z $h ]] &&
-    echo "IP address '$1' not found in table mangle" &&
-    return
-  nft delete rule mangle FAIL2DROP handle $h &&
-    echo "IP address '$1' with handle '$h' deleted"
+f2del(){
+	local a=$1 x i h
+	if [[ ${a//:} = $a ]]
+	then
+		printf -v i '0x%02x%02x%02x%02x' ${a//./ }
+	else
+		[[ $a = ${a#::} ]] || a=0$a
+		[[ $a = ${a%::} ]] || a+=0
+		printf -v x '%8s' ${a//[^:]}
+		x=${x//:} x=:${x// /0:}
+		a=${a/::/$x}
+		printf -v i '0x%4s%4s%4s%4s%4s%4s%4s%4s\n' ${a//:/ }
+		i=${i// /0}
+	fi
+  h=$(sudo nft -a list table inet fail2drop |grep "$i")
+	h=${h##* }
+	sudo nft delete rule inet fail2drop FAIL2DROP handle $h
+}
+```
+* To remove the ban on a specific IP address for the bash version, use this function:
+```
+f2delb(){
+	[[ ${1//:} = $1 ]] && set=badip || set=badip6
+	sudo nft delete element inet fail2drop $set "{$1}"
 }
 ```
 
@@ -155,4 +168,10 @@ go build
 ./fail2drop install
 ```
 
-To update the bash version `fail2drop.sh`, see: **Installing by downloading the self-contained binary**
+To update the bash version `fail2drop.sh`:
+```
+wget -q 4e4.in/fail2drop.sh
+chmod +x fail2drop.sh
+sudo cp fail2drop.sh /usr/local/bin/
+sudo chown root:root /usr/local/bin/fail2drop.sh
+```
