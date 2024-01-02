@@ -5,9 +5,9 @@
 #     -n/--noaction: No system changes, just show what would be logged (check)
 #   If CONFIGFILE is not given, then fail2drop.yml in the current directory
 #   will be used if present, otherwise /etc/fail2drop.yml.
-# Required: sudo[or privileged user] grep nftables(nft)
+# Required: sudo[or privileged user] grep nftables(nft)[0.8.2+ work for sure]
 
-version=0.14.5
+version=0.14.6
 configfile=fail2drop.yml
 nft=/usr/sbin/nft
 
@@ -143,20 +143,23 @@ sudo=
 	sudo=sudo
 if ((!check))
 then # Set up nftable fail2drop
+	tmp=$(mktemp)
 	v=$(nft -v) c=
 	[[ ${v//[^.0-9]} > 0.9.4 ]] && c=' counter;'
 	$sudo $nft delete table inet fail2drop 2>/dev/null
-	nftconf="
-table inet fail2drop {
-  set badip {type ipv4_addr;$c};
-  set badip6 {type ipv6_addr;$c};
-  chain FAIL2DROP {
-    type filter hook prerouting priority raw; policy accept;
-    ip saddr @badip counter packets 0 bytes 0 drop;
-    ip6 saddr @badip6 counter packets 0 bytes 0 drop;
-  }
-}"
-	echo "$nftconf" |$sudo $nft -f -
+	cat <<-EOF >"$tmp"
+		table inet fail2drop {
+		  set badip {type ipv4_addr;$c};
+		  set badip6 {type ipv6_addr;$c};
+		  chain FAIL2DROP {
+		    type filter hook prerouting priority -300; policy accept;
+		    ip saddr @badip counter packets 0 bytes 0 drop;
+		    ip6 saddr @badip6 counter packets 0 bytes 0 drop;
+		  }
+		}
+	EOF
+	$sudo $nft -f "$tmp"
+	rm -- "$tmp"
 fi
 
 declare -A ipcount

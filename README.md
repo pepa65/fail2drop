@@ -1,15 +1,17 @@
-# fail2drop v0.14.5
+# fail2drop v0.14.6
 **Drop repeat-offending IP addresses in-kernel (netfilter)**
 
 * Repo: github.com/pepa65/fail2drop
 * License: GPLv3+
 * After: github.com/apache2046/fail2drop
 * Packets from IPs dropped in-kernel with Netfilter (nftables) rules.
-* Linux small single stand-alone binary distribution with Golang source. This version uses a rule for each banned IP.
+* Linux small single stand-alone binary distribution with Golang source.
+  This version uses a rule for each banned IP.
 * Can install systemd unit file for automated start, runs fine without systemd.
 * Installs a basic configfile for sshd when not present.
 * Package `nftables` (binary `nft`) does not need to be installed (but do install it to check counts/state/results!).
-* Bash version that requires package `nftables`. The bash version uses sets of IP addresses with a single rule.
+* Bash version that requires package `nftables` (tested to work with version `0.8.2` and up).
+  The bash version uses sets of IP addresses with a single rule.
 * Logs to single file which can be specified in configfile, `/etc/fail2drop.yml` by default.
 * IPs can be whitelisted in configfile.
 * Multiple logfiles can be monitored with multiple patterns and bancounts from configfile.
