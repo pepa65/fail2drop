@@ -7,7 +7,7 @@
 #   will be used if present, otherwise /etc/fail2drop.yml.
 # Required: sudo[or privileged user] grep nftables(nft)[0.8.2+ work for sure]
 
-version=0.14.6
+version=0.14.7
 configfile=fail2drop.yml
 nft=/usr/sbin/nft
 
@@ -144,7 +144,7 @@ sudo=
 if ((!check))
 then # Set up nftable fail2drop
 	tmp=$(mktemp)
-	v=$(nft -v) c=
+	v=$($nft -v) c=
 	[[ ${v//[^.0-9]} > 0.9.4 ]] && c=' counter;'
 	$sudo $nft delete table inet fail2drop 2>/dev/null
 	cat <<-EOF >"$tmp"
