@@ -1,4 +1,4 @@
-# fail2drop v0.14.8
+# fail2drop v0.14.9
 **Drop repeat-offending IP addresses in-kernel (netfilter)**
 
 * Repo: github.com/pepa65/fail2drop
@@ -99,7 +99,7 @@ Basically, run continuously through the systemd service file,
 or run occasionally with the `once` option, or run 'once' without affecting
 the system to see what would get banned by running with the `noaction` option.
 ```
-fail2drop v0.14.8 - Drop repeat-offending IP addresses in-kernel (netfilter)
+fail2drop v0.14.9 - Drop repeat-offending IP addresses in-kernel (netfilter)
 Repo:   github.com/pepa65/fail2drop
 Usage:  fail2drop [ OPTION | CONFIGFILE ]
     OPTION:
