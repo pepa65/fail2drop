@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	version = "0.14.9"
+	version = "0.15.0"
 	name    = "fail2drop"
 	prefix  = "/usr/local/bin/"
 )
@@ -50,7 +50,7 @@ var (
 func usage(msg string) {
 	help := name + " v" + version + " - Drop repeat-offending IP addresses in-kernel (netfilter)\n" +
 		"Repo:   github.com/pepa65/fail2drop\n" +
-		"Usage:  " + name + " [ OPTION | CONFIGFILE ]\n" +
+		"Usage:  " + name + " [OPTION] [CONFIGFILE]\n" +
 		"    OPTION:\n" +
 		"      -o|once:         Add to-be-banned IPs in a single run (or from 'cron').\n" +
 		"      -n|noaction:     Do a 'once' single run without affecting the system.\n" +

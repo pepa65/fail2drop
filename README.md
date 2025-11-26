@@ -5,28 +5,26 @@
 * License: GPLv3+
 * After: github.com/apache2046/fail2drop
 * Packets from IPs dropped in-kernel with Netfilter (nftables) rules.
-* Linux small single stand-alone binary distribution with Golang source.
-  This version uses a rule for each banned IP.
-* Can install systemd unit file for automated start, runs fine without systemd.
-* Installs a basic configfile for sshd when not present.
-* Package `nftables` (binary `nft`) does not need to be installed (but do install it to check counts/state/results!).
-* Bash version that requires package `nftables` (tested to work with version `0.8.2` and up).
-  The bash version uses sets of IP addresses with a single rule.
-* Logs to single file which can be specified in configfile, `/etc/fail2drop.yml` by default.
-* IPs can be whitelisted in configfile.
-* Multiple logfiles can be monitored with multiple patterns and bancounts from configfile.
-* Usage: `fail2drop` [ CFGFILE | `-o`|`--once` | `-n`|`noaction` | `-i`|`install` | `-u`|`uninstall` | `-h`|`help` | `-V`|`version` ]
+* **Golang version**: Linux small single stand-alone binary distribution with Golang source:
+  - Uses a rule for each banned IP in NFT.
+  - Can install systemd unit file for automated start (but also runs fine without `systemd`).
+  - Can uninstall the systemd unit file and stop & disable the service.
+  - Installs a basic configfile for sshd when not present.
+  - Package `nftables` (binary `nft`) does not need to be installed (but do install it to check counts/state/results!).
   - Can use an alternate configfile from the commandline, otherwise 
     `fail2drop.yml` in the current directory will be used, and finally `/etc/fail2drop.yml`.
-  - Can run once (or being called from `cron` occasionally) to add drop rules to nftables,
-    without needing to constantly monitor the log files, for very lightweight operation.
-		In this case the output is to stdout, so wants to be redirected in cron jobs
-  - Can run once and list the to-be-banned IP addresses without affecting the system.
-  - Can install the binary, a template for the configfile, the systemd unit file and enable & start the service.
-  - Can stop & disable the service and remove the unit file.
-  - Can show a help text.
-  - Can show the version.
-* Running 'noaction', showing the help text or version does not require privileges, the rest does.
+* **Bash version**: requires package `nftables` (tested to work with version `0.8.2` and up):
+  - Does not use `systemd`.
+  - Uses sets of IP addresses with a single rule in NFT.
+* Both versions use the configfile (`/etc/fail2drop.yml` by default):
+  - Logging to single file which can be specified in configfile.
+  - IPs can be whitelisted in configfile.
+  - Multiple logfiles can be monitored with multiple patterns and bancounts from configfile.
+* Both versions can run with `noaction`: list to-be-banned IP addresses without affecting the system.
+* Both versions can run once (or occasionally from `cron`) to add drop rules to nftables without
+  needing to constantly monitor the log files, for very lightweight operation.
+  (In this case the output is to stdout, so it wants redirecting in cron jobs.)
+* Running `noaction`, `help` or `version` requires no privileges (the other options do).
 
 ## Install
 * Required: `sudo` (or any way to operate with root privileges)
@@ -35,8 +33,7 @@
 * Required: `wget` (or any other way to download the binary)
 * Get the appropriate link to the latest released binary at:
   https://github.com/pepa65/fail2drop/releases
-* Or use `4e4.in/fail2drop`
-
+* Or use `4e4.in/fail2drop`:
 ```
 wget -q 4e4.in/fail2drop
 chmod +x fail2drop
@@ -44,8 +41,7 @@ sudo ./fail2drop install
 # Edit /etc/fail2drop.yml if required, and if changed, do:
 sudo systemctl restart fail2drop
 ```
-
-Or for `fail2drop.sh`, use `gitlab.com/pepa65/fail2drop/raw/main/fail2drop.sh`, or:
+* Or for `fail2drop.sh`, use `gitlab.com/pepa65/fail2drop/raw/main/fail2drop.sh`, or:
 ```
 wget -q 4e4.in/fail2drop.sh
 chmod +x fail2drop.sh
@@ -58,7 +54,6 @@ sudo chown root:root /etc/fail2drop.yml
 
 ### Installing with go
 * Required: `go` properly installed
-
 ```
 sudo go install github.com/pepa65/fail2drop@latest
 sudo fail2drop install
@@ -87,21 +82,24 @@ Then add this command to a crontab: `/usr/local/bin/fail2drop --once 2>>/var/log
 Or add: `/usr/local/bin/fail2drop.sh 2>>/var/log/fail2drop.log`
 (The output of the bash version is also on `stderr`.)
 
-## Uninstall
-`fail2drop uninstall`
+## Uninstall Golang version
+```
+# Also uninstalls, stops and disables the systemd unit file if present
+fail2drop uninstall
+```
 
-* The binary can be removed with: `sudo rm /usr/local/bin/fail2drop`
-* The bash script can be removed with: `sudo rm /usr/local/bin/fail2drop.sh`
+* The Golang version can be removed with: `sudo rm /usr/local/bin/fail2drop`
+* The Bash version can be removed with: `sudo rm /usr/local/bin/fail2drop.sh`
 * The configfile can be removed with: `sudo rm /etc/fail2drop.yml`
 
-## Usage
-Basically, run continuously through the systemd service file,
-or run occasionally with the `once` option, or run 'once' without affecting
-the system to see what would get banned by running with the `noaction` option.
+## Usage Golang version
+Basically, run continuously through the systemd service file, or run occasionally
+with the `once` option, or run 'once' without affecting the system to see what
+would get added to the banned list by running with the `noaction` option.
 ```
-fail2drop v0.14.9 - Drop repeat-offending IP addresses in-kernel (netfilter)
+fail2drop v0.15.0 - Drop repeat-offending IP addresses in-kernel (netfilter)
 Repo:   github.com/pepa65/fail2drop
-Usage:  fail2drop [ OPTION | CONFIGFILE ]
+Usage:  fail2drop [OPTION] [CONFIGFILE]
     OPTION:
       -o|once:         Add to-be-banned IPs in a single run (or from 'cron').
       -n|noaction:     Do a 'once' single run without affecting the system.
@@ -125,16 +123,16 @@ Usage:  fail2drop [ OPTION | CONFIGFILE ]
   - `tag:` - The initial search tag to filter lines in the log file
   - `ipregex:` - A regular expression that should contains an offending IP address.
   - `bancount:` - The maximum number of offences allowed.
-* If `/etc/fail2drop.yml` does not exist, `fail2drop install` will put the repo content
-  of `fail2drop.yml` there. This can be modified and extended.
+* If `/etc/fail2drop.yml` does not exist, `fail2drop install` will put the repo
+  content of `fail2drop.yml` there. This can be modified and extended.
 
 ## Monitor
 * Check current table with: `sudo nft list ruleset` (`nft` from package `nftables`).
 * Check the log of banned IPs: `less /var/log/fail2drop.log`
-* Unban all banned entries: `sudo nft delete inet table fail2drop`
-* To remove the ban on a specific IP address for the golang version, use this function:
+* Unban all banned entries: `sudo nft delete table inet fail2drop`
+* To remove the ban on a specific IP address for the Golang version, use this function:
 ```
-f2del(){
+f2delg(){ # 1:IP-address
 	local a=$1 x i h
 	if [[ ${a//:} = $a ]]
 	then
@@ -155,7 +153,7 @@ f2del(){
 ```
 * To remove the ban on a specific IP address for the bash version, use this function:
 ```
-f2delb(){
+f2delb(){ # 1:IP-address
 	[[ ${1//:} = $1 ]] && set=badip || set=badip6
 	sudo nft delete element inet fail2drop $set "{$1}"
 }
@@ -166,11 +164,11 @@ Basically, run the new binary with the `install` option.
 ```
 cd fail2drop  # Go to the directory with the cloned repo
 git pull
-go build
-./fail2drop install
+# For the Golang version:
+go build && ./fail2drop install
 ```
 
-To update the bash version `fail2drop.sh`:
+To update the Bash version `fail2drop.sh` without downloading the whole repo:
 ```
 wget -q 4e4.in/fail2drop.sh
 chmod +x fail2drop.sh

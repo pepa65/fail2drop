@@ -24,7 +24,7 @@ Err(){ # 1:msg
 check=0
 if [[ $1 ]]
 then
-	[[ $1 = -n || $1 = --noaction || $1 = -c || $1 = --check ]] &&
+	[[ $1 = -n || $1 = --noaction || $1 = noaction || $1 = -c || $1 = --check ]] &&
 		check=1 ||
 		configfile=$1
 fi
