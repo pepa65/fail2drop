@@ -52,6 +52,7 @@ func usage(msg string) {
 		"Repo:   github.com/pepa65/fail2drop\n" +
 		"Usage:  " + name + " [OPTION] [CONFIGFILE]\n" +
 		"    OPTION:\n" +
+		"      -c|clear:        Clear out all banned IPs from the kernel table.\n" +
 		"      -o|once:         Add to-be-banned IPs in a single run (or from 'cron').\n" +
 		"      -n|noaction:     Do a 'once' single run without affecting the system.\n" +
 		"      -i|install:      Install the binary, a template for the configfile, the\n" +
@@ -231,6 +232,17 @@ func follow(logsearch logsearch) {
 	}
 }
 
+func clearnf() {
+	if noaction {
+		return
+	}
+
+	conn := &nf.Conn{}
+	// nft delete table inet fail2drop
+	conn.DelTable(&nf.Table{Name: "fail2drop"})
+	conn.Flush()
+}
+
 func initnf() {
 	if noaction {
 		return
@@ -330,6 +342,10 @@ func main() {
 		switch os.Args[1] {
 		case "help", "-h", "--help":
 			usage("")
+		case "clear", "-c", "--clear":
+			clearnf()
+			os.Exit(0)
+
 		case "version", "-V", "--version":
 			fmt.Println(name + " v" + version)
 			os.Exit(0)
@@ -339,7 +355,7 @@ func main() {
 
 		case "install", "-i", "--install":
 			doinstall = true
-		case "noaction", "-n", "--noaction", "check", "-c", "--check":
+		case "noaction", "-n", "--noaction":
 			noaction, once = true, true
 		case "once", "-o", "--once":
 			once = true
