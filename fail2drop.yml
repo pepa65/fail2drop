@@ -7,10 +7,10 @@ sshd-auth:
   logfile: '/var/log/auth.log'
   tag: 'sshd'
   ipregex: 'Connection closed by [1-9][^ ]*'
-  bancount: 5
+  bancount: 15
 
 sshd-auth1:
   logfile: '/var/log/auth.log.1'
   tag: 'sshd'
   ipregex: 'Connection closed by [1-9][^ ]*'
-  bancount: 5
+  bancount: 15
